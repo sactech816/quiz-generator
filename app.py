@@ -3,6 +3,9 @@ import json
 import openai
 import os
 
+# 日本語文字化け防止
+os.environ["PYTHONIOENCODING"] = "utf-8"
+
 # ページ設定
 st.set_page_config(page_title="AI診断LPジェネレーター", layout="wide")
 
@@ -131,50 +134,99 @@ st.markdown("AIにテーマを伝えるだけで、質問から結果まで全�
 
 # === サイドバー：API設定 & AI生成 ===
 with st.sidebar:
-    # ▼▼▼ 修正箇所ここから ▼▼▼
-    
+    st.header("🧠 AI設定")
     # APIキーは入力させず、Secretsから読み込む
     if "OPENAI_API_KEY" in st.secrets:
         api_key = st.secrets["OPENAI_API_KEY"]
     else:
-        st.error("管理者設定エラー：APIキーが設定されていません。")
-        st.stop() # キーがない場合はここで止める
+        # Secretsがない場合のフォールバック（テスト用）
+        api_key = st.text_input("OpenAI APIキー (sk-...)", type="password")
+        if not api_key:
+            st.warning("APIキーを設定してください")
+            st.stop()
     
+    st.markdown("---")
     st.header("✨ AIで自動生成")
     theme = st.text_area("どんな診断を作りますか？", "例：30代女性向けの婚活診断。辛口でアドバイスする。", height=100)
     
     if st.button("AIで構成案を作る", type="primary"):
         try:
-            # プレースホルダー（メッセージ表示領域）を作成
             status_text = st.empty()
             progress_bar = st.progress(0)
             
-            # ステップ1: 思考開始
             status_text.info("🧠 AIがテーマを分析しています...")
             progress_bar.progress(10)
             client = openai.OpenAI(api_key=api_key)
             
+            # JSONモードを強制するためのプロンプト
             prompt = f"""
-            （プロンプトの中身は前回のままでOK）
+            以下のテーマで「診断コンテンツ」を作成してください。
+            テーマ: {theme}
+            
+            必ず以下のJSONフォーマットのみを出力してください。
+            {{
+                "page_title": "タイトル",
+                "main_heading": "大見出し",
+                "intro_text": "導入文",
+                "results": {{
+                    "A": {{ "title": "タイプA名", "desc": "説明", "btn": "ボタン文字" }},
+                    "B": {{ "title": "タイプB名", "desc": "説明", "btn": "ボタン文字" }},
+                    "C": {{ "title": "タイプC名", "desc": "説明", "btn": "ボタン文字" }}
+                }},
+                "questions": [
+                    {{
+                        "question": "質問文",
+                        "answers": [
+                            {{ "text": "選択肢1", "type": "A" }},
+                            {{ "text": "選択肢2", "type": "B" }},
+                            {{ "text": "選択肢3", "type": "C" }},
+                            {{ "text": "選択肢4", "type": "A" }}
+                        ]
+                    }}
+                ]
+            }}
+            質問は5つ作成してください。JSON形式以外は出力しないでください。
             """
             
-            # ステップ2: 生成実行 (ここが一番長い)
             status_text.info("🤔 質問と診断ロジックを構築中... (約15秒)")
             progress_bar.progress(30)
             
+            # 【重要】systemメッセージを追加してエラーを回避
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
-                messages=[{"role": "user", "content": prompt}],
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant designed to output JSON."},
+                    {"role": "user", "content": prompt}
+                ],
                 response_format={"type": "json_object"}
             )
             
-            # ステップ3: データ反映
             progress_bar.progress(80)
             status_text.info("🎨 画面に反映しています...")
             data = json.loads(response.choices[0].message.content)
             
-            # ... (データの保存処理：st.session_stateへの代入などは前回のまま) ...
-            # ここに前回の代入ロジックが入ります
+            st.session_state['page_title'] = data.get('page_title', '')
+            st.session_state['main_heading'] = data.get('main_heading', '')
+            st.session_state['intro_text'] = data.get('intro_text', '')
+            
+            if 'results' in data:
+                for t in ['A', 'B', 'C']:
+                    if t in data['results']:
+                        st.session_state[f'res_title_{t}'] = data['results'][t].get('title', '')
+                        st.session_state[f'res_desc_{t}'] = data['results'][t].get('desc', '')
+                        st.session_state[f'res_btn_{t}'] = data['results'][t].get('btn', '詳細へ')
+            
+            if 'questions' in data:
+                for i, q_data in enumerate(data['questions']):
+                    idx = i + 1
+                    if idx > 5: break
+                    st.session_state[f'q_text_{idx}'] = q_data.get('question', '')
+                    
+                    for j, ans in enumerate(q_data.get('answers', [])):
+                        a_idx = j + 1
+                        if a_idx > 4: break
+                        st.session_state[f'q{idx}_a{a_idx}_text'] = ans.get('text', '')
+                        st.session_state[f'q{idx}_a{a_idx}_type'] = ans.get('type', 'A')
 
             progress_bar.progress(100)
             status_text.success("✅ 完了しました！")
@@ -247,5 +299,4 @@ if submitted:
         )
         
         st.success("✅ 生成成功！")
-
         st.download_button("📥 HTMLをダウンロード", final_html, "my_diagnosis.html", "text/html")
