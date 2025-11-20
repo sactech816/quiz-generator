@@ -2,6 +2,7 @@ import streamlit as st
 import json
 import openai
 import os
+import time  # ← これを追加しました
 
 # 日本語文字化け防止
 os.environ["PYTHONIOENCODING"] = "utf-8"
@@ -134,18 +135,17 @@ st.markdown("AIにテーマを伝えるだけで、質問から結果まで全�
 
 # === サイドバー：API設定 & AI生成 ===
 with st.sidebar:
-    st.header("🧠 AI設定")
-    # APIキーは入力させず、Secretsから読み込む
+    # APIキーの処理（Secretsにあれば表示しない）
     if "OPENAI_API_KEY" in st.secrets:
         api_key = st.secrets["OPENAI_API_KEY"]
     else:
-        # Secretsがない場合のフォールバック（テスト用）
+        # Secretsがない場合のみ設定画面を出す
+        st.header("🧠 AI設定")
         api_key = st.text_input("OpenAI APIキー (sk-...)", type="password")
         if not api_key:
             st.warning("APIキーを設定してください")
             st.stop()
     
-    st.markdown("---")
     st.header("✨ AIで自動生成")
     theme = st.text_area("どんな診断を作りますか？", "例：30代女性向けの婚活診断。辛口でアドバイスする。", height=100)
     
@@ -158,7 +158,7 @@ with st.sidebar:
             progress_bar.progress(10)
             client = openai.OpenAI(api_key=api_key)
             
-            # JSONモードを強制するためのプロンプト
+            # JSONモード強制プロンプト
             prompt = f"""
             以下のテーマで「診断コンテンツ」を作成してください。
             テーマ: {theme}
@@ -191,7 +191,7 @@ with st.sidebar:
             status_text.info("🤔 質問と診断ロジックを構築中... (約15秒)")
             progress_bar.progress(30)
             
-            # 【重要】systemメッセージを追加してエラーを回避
+            # システムメッセージを追加してエラー回避
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
