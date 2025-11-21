@@ -8,36 +8,8 @@ from supabase import create_client, Client
 # 日本語文字化け防止
 os.environ["PYTHONIOENCODING"] = "utf-8"
 
-# ページ設定 (タイトルとアイコン)
-st.set_page_config(page_title="診断クイズメーカー", page_icon="🔮", layout="centered")
-
-# --- デザイン調整用CSS ---
-st.markdown("""
-    <style>
-    .stApp { background-color: #f1f5f9; }
-    .block-container { padding-top: 2rem; padding-bottom: 2rem; max-width: 700px; }
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    
-    .stButton button {
-        width: 100%;
-        border-radius: 8px;
-        font-weight: bold;
-        border: none;
-        padding: 0.5rem 1rem;
-        transition: all 0.3s;
-    }
-    .stButton button[kind="primary"] {
-        background-color: #2563eb;
-        color: white;
-    }
-    .stButton button:hover {
-        transform: scale(1.02);
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
-    </style>
-""", unsafe_allow_html=True)
+# ページ設定 (作成画面のために 'wide' に戻しました)
+st.set_page_config(page_title="診断クイズメーカー", page_icon="🔮", layout="wide")
 
 # --- Supabase接続 ---
 @st.cache_resource
@@ -59,9 +31,9 @@ def init_state(key, default_val):
     if key not in st.session_state:
         st.session_state[key] = default_val
 
-# --- AI生成回数の管理 (NEW) ---
+# --- AI生成回数の管理 ---
 init_state('ai_count', 0)
-AI_LIMIT = 5  # 制限回数
+AI_LIMIT = 5
 
 # --- モード判定 ---
 query_params = st.query_params
@@ -71,6 +43,41 @@ quiz_id = query_params.get("id", None)
 # モードA：閲覧モード (プレイ画面)
 # ==========================================
 if quiz_id:
+    # ★★★ ここでけ「Webサイト風デザイン」を適用します ★★★
+    st.markdown("""
+        <style>
+        /* 背景を薄いグレーに */
+        .stApp { background-color: #f1f5f9; }
+        
+        /* スマホで見やすいように幅を制限して中央寄せ */
+        .block-container { 
+            padding-top: 2rem; 
+            padding-bottom: 2rem; 
+            max-width: 700px; 
+            margin: 0 auto;
+        }
+        
+        /* 余計なメニューを消す */
+        #MainMenu {visibility: hidden;}
+        footer {visibility: hidden;}
+        header {visibility: hidden;}
+        
+        /* ボタンデザイン */
+        .stButton button {
+            width: 100%;
+            border-radius: 8px;
+            font-weight: bold;
+            border: none;
+            padding: 0.5rem 1rem;
+            transition: all 0.3s;
+        }
+        .stButton button:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
     if not supabase:
         st.error("データベース設定がありません")
         st.stop()
@@ -163,12 +170,14 @@ if quiz_id:
 # モードB：作成モード (ジェネレーター画面)
 # ==========================================
 else:
+    # ★★★ 作成画面はデフォルトの見た目(黒背景など)に戻ります ★★★
+    
     st.markdown("""
     <div style="text-align: center; margin-bottom: 40px;">
-        <h1 style="font-size: 2.5rem; font-weight: 800; background: -webkit-linear-gradient(45deg, #2563eb, #db2777); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+        <h1 style="font-size: 3rem; font-weight: 800; background: -webkit-linear-gradient(45deg, #2563eb, #db2777); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
             AI Diagnosis Maker
         </h1>
-        <p style="color: #64748b;">AIの力で、世界に一つの診断コンテンツを作ろう。</p>
+        <p style="color: #888;">AIの力で、世界に一つの診断コンテンツを作ろう。</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -264,9 +273,7 @@ else:
                                 st.session_state[f'q{idx}_a{adx}_text'] = ans.get('text', '')
                                 st.session_state[f'q{idx}_a{adx}_type'] = ans.get('type', 'A')
                     
-                    # カウントアップ
                     st.session_state.ai_count += 1
-                    
                     status.success(f"構成案が完成しました！(残り {remaining - 1}回)")
                     time.sleep(0.5)
                     st.rerun()
@@ -365,7 +372,6 @@ else:
                 }).execute()
                 
                 new_id = res.data[0]['id']
-                # URLを修正しました
                 base_url = "https://shindan-quiz-maker.streamlit.app"
                 public_url = f"{base_url}/?id={new_id}"
                 
@@ -373,8 +379,8 @@ else:
                 st.balloons()
                 
                 st.markdown(f"""
-                <div style="background: #dcfce7; padding: 20px; border-radius: 10px; text-align: center; margin: 20px 0;">
-                    <p style="font-weight: bold; color: #166534; margin-bottom: 10px;">👇 あなたの診断URLはこちら</p>
+                <div style="background: #dcfce7; padding: 20px; border-radius: 10px; text-align: center; margin: 20px 0; color: #166534;">
+                    <p style="font-weight: bold; margin-bottom: 10px;">👇 あなたの診断URLはこちら</p>
                     <code style="font-size: 1.2rem; user-select: all;">{public_url}</code>
                 </div>
                 """, unsafe_allow_html=True)
