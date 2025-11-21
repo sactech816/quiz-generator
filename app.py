@@ -304,7 +304,7 @@ else:
                 
                 # IDを取得してURLを表示
                 new_id = res.data[0]['id']
-                base_url = "https://keisho-quiz.streamlit.app" # ★ここを自分のURLに変える！
+                base_url = "https://shindan-quiz-maker.streamlit.app/" # ★ここを自分のURLに変える！
                 public_url = f"{base_url}/?id={new_id}"
                 
                 st.success("公開しました！")
@@ -313,3 +313,4 @@ else:
                 
             except Exception as e:
                 st.error(f"保存エラー: {e}")
+
