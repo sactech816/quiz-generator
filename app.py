@@ -13,22 +13,6 @@ os.environ["PYTHONIOENCODING"] = "utf-8"
 # ページ設定
 st.set_page_config(page_title="診断クイズメーカー", page_icon="🔮", layout="wide")
 
-# --- CSS (デザイン) ---
-st.markdown("""
-    <style>
-    .stApp { background-color: #f1f5f9; }
-    .block-container { padding-top: 2rem; padding-bottom: 2rem; max-width: 900px; margin: 0 auto; }
-    #MainMenu {visibility: hidden;} footer {visibility: hidden;} header {visibility: hidden;}
-    .stButton button { width: 100%; border-radius: 8px; font-weight: bold; border: none; padding: 0.5rem 1rem; transition: all 0.3s; }
-    .stButton button:hover { transform: scale(1.02); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-    
-    /* タブの文字サイズ調整 */
-    .stTabs [data-baseweb="tab-list"] button [data-testid="stMarkdownContainer"] p {
-        font-size: 1rem; font-weight: bold;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
 # --- メール送信関数 ---
 def send_email(to_email, quiz_url, quiz_title):
     try:
@@ -91,6 +75,17 @@ quiz_id = query_params.get("id", None)
 # モードA：閲覧モード (プレイ画面)
 # ==========================================
 if quiz_id:
+    # ★★★ プレイ画面専用のデザインCSS ★★★
+    st.markdown("""
+        <style>
+        .stApp { background-color: #f1f5f9; }
+        .block-container { padding-top: 2rem; padding-bottom: 2rem; max-width: 700px; margin: 0 auto; }
+        #MainMenu {visibility: hidden;} footer {visibility: hidden;} header {visibility: hidden;}
+        .stButton button { width: 100%; border-radius: 8px; font-weight: bold; border: none; padding: 0.5rem 1rem; transition: all 0.3s; }
+        .stButton button:hover { transform: scale(1.02); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        </style>
+    """, unsafe_allow_html=True)
+
     if not supabase:
         st.error("データベース設定がありません")
         st.stop()
@@ -143,8 +138,7 @@ if quiz_id:
             <div style="background-color: white; padding: 2.5rem; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center; border-top: 8px solid #2563eb; margin-top: 20px; margin-bottom: 30px;">
                 <p style="color: #2563eb; font-weight: bold;">DIAGNOSIS RESULT</p>
                 <h2 style="font-size: 2rem; font-weight: 800; margin: 1rem 0; color: #1e293b;">{res_data.get('title', 'タイプ' + max_type)}</h2>
-                <div style="width: 50px; height: 4px; background: #cbd5e1; margin: 1rem auto;"></div>
-                <p style="color: #475569; margin-bottom: 2rem; line-height: 1.8;">{res_data.get('desc', '')}</p>
+                <p style="color: #475569; margin-bottom: 2rem;">{res_data.get('desc', '')}</p>
                 <a href="{res_data.get('link', '#')}" target="_blank" style="display: inline-block; background: #2563eb; color: white; font-weight: bold; padding: 12px 30px; border-radius: 50px; text-decoration: none;">{res_data.get('btn', '詳細を見る')} ➤</a>
             </div>
             """, unsafe_allow_html=True)
@@ -163,9 +157,19 @@ if quiz_id:
         st.error(f"エラー: {e}")
 
 # ==========================================
-# モードB：作成モード
+# モードB：作成モード (ジェネレーター画面)
 # ==========================================
 else:
+    # ★★★ 作成モード用のCSS（標準に戻す） ★★★
+    # ここでは余計な背景色指定をせず、メニューだけ隠します
+    st.markdown("""
+        <style>
+        #MainMenu {visibility: hidden;} 
+        footer {visibility: hidden;} 
+        header {visibility: hidden;}
+        </style>
+    """, unsafe_allow_html=True)
+
     # HTMLテンプレート (ダウンロード用)
     html_template_str = """
     <!DOCTYPE html>
@@ -263,11 +267,12 @@ else:
     </div>
     """, unsafe_allow_html=True)
 
+    # サイドバー (AI)
     with st.sidebar:
         if "OPENAI_API_KEY" in st.secrets:
             api_key = st.secrets["OPENAI_API_KEY"]
         else:
-            st.warning("APIキー設定が必要です")
+            st.error("APIキー設定が必要です")
             st.stop()
         
         st.header("🧠 AIアシスタント")
@@ -288,18 +293,16 @@ else:
                     response_format={"type": "json_object"}
                 )
                 data = json.loads(response.choices[0].message.content)
-                
+                # データ反映
                 st.session_state['page_title'] = data.get('page_title', '')
                 st.session_state['main_heading'] = data.get('main_heading', '')
                 st.session_state['intro_text'] = data.get('intro_text', '')
-                
                 if 'results' in data:
                     for t in ['A', 'B', 'C']:
                         if t in data['results']:
                             st.session_state[f'res_title_{t}'] = data['results'][t].get('title', '')
                             st.session_state[f'res_desc_{t}'] = data['results'][t].get('desc', '')
                             st.session_state[f'res_btn_{t}'] = data['results'][t].get('btn', '')
-                
                 if 'questions' in data:
                     for i, qd in enumerate(data['questions']):
                         idx = i + 1
@@ -308,7 +311,6 @@ else:
                             adx = j + 1
                             st.session_state[f'q{idx}_a{adx}_text'] = ans.get('text', '')
                             st.session_state[f'q{idx}_a{adx}_type'] = ans.get('type', 'A')
-                
                 st.session_state.ai_count += 1
                 st.rerun()
             except Exception as e:
@@ -325,24 +327,22 @@ else:
         main_heading = st.text_input("タイトル", key='main_heading')
         intro_text = st.text_area("導入文", key='intro_text')
         
-        # --- 結果設定ループ (ここが抜けていました！) ---
+        # 結果設定
         st.markdown("---")
         results_obj = {}
-        tabs = st.tabs(["タイプA", "タイプB", "タイプC"])
-        for i, t in enumerate(['A', 'B', 'C']):
+        for t in ['A', 'B', 'C']:
             init_state(f'res_title_{t}', '')
             init_state(f'res_desc_{t}', '')
             init_state(f'res_btn_{t}', '')
             init_state(f'res_link_{t}', '')
-            
-            with tabs[i]:
-                rt = st.text_input("結果タイトル", key=f'res_title_{t}')
-                rd = st.text_area("説明文", key=f'res_desc_{t}')
-                rb = st.text_input("ボタン文字", key=f'res_btn_{t}')
-                rl = st.text_input("リンクURL", key=f'res_link_{t}')
+            with st.expander(f"タイプ{t} の設定"):
+                rt = st.text_input("名前", key=f'res_title_{t}')
+                rd = st.text_area("説明", key=f'res_desc_{t}')
+                rb = st.text_input("ボタン", key=f'res_btn_{t}')
+                rl = st.text_input("URL", key=f'res_link_{t}')
                 results_obj[t] = {'title': rt, 'desc': rd, 'btn': rb, 'link': rl}
 
-        # --- 質問設定ループ (ここが抜けていました！) ---
+        # 質問設定
         st.markdown("---")
         questions_obj = []
         for q in range(1, 6):
@@ -353,14 +353,12 @@ else:
                 for a in range(1, 5):
                     init_state(f'q{q}_a{a}_text', '')
                     init_state(f'q{q}_a{a}_type', 'A')
-                    
                     c1, c2 = st.columns([3, 1])
                     with c1:
-                        at = st.text_input(f"選択肢{a}", key=f'q{q}_a{a}_text')
+                        at = st.text_input(f"選択{a}", key=f'q{q}_a{a}_text')
                     with c2:
                         aty = st.selectbox("加点", ["A", "B", "C"], key=f'q{q}_a{a}_type')
                     ans_list.append({'text': at, 'type': aty})
-                
                 if qt:
                     questions_obj.append({'question': qt, 'answers': ans_list})
 
