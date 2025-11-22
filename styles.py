@@ -32,8 +32,7 @@ def apply_portal_style():
             border: 1px solid #e2e8f0;
             border-radius: 12px;
             overflow: hidden;
-            /* ★ここを修正: 高さを400pxに固定して揃える */
-            height: 400px;
+            height: 420px; /* 高さを確保 */
             display: flex;
             flex-direction: column;
             box-shadow: 0 2px 4px rgba(0,0,0,0.02);
@@ -52,11 +51,11 @@ def apply_portal_style():
         /* 画像エリア */
         .quiz-thumb-box {
             width: 100%;
-            height: 160px; /* 画像高さ固定 */
+            height: 180px; /* 画像高さ固定 */
             background-color: #f1f5f9;
             overflow: hidden;
             position: relative;
-            flex-shrink: 0; /* 縮小させない */
+            flex-shrink: 0;
         }
         .quiz-thumb {
             width: 100%;
@@ -72,6 +71,7 @@ def apply_portal_style():
             flex-grow: 1;
             display: flex;
             flex-direction: column;
+            justify-content: flex-start;
         }
         
         /* タイトル (2行制限) */
@@ -81,23 +81,24 @@ def apply_portal_style():
             margin-bottom: 8px;
             color: #1e293b;
             line-height: 1.4;
-            height: 2.8em; /* 高さ確保 */
+            height: 2.8em;
             overflow: hidden;
             display: -webkit-box;
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
         }
         
-        /* 説明文 (残りのスペースを埋める・はみ出たら省略) */
+        /* 説明文 (3行制限) */
         .quiz-desc { 
             font-size: 0.85rem;
             color: #64748b;
-            line-height: 1.6;
+            line-height: 1.5;
+            height: 4.5em;
             overflow: hidden;
             display: -webkit-box;
-            -webkit-line-clamp: 4; /* 4行まで表示 */
+            -webkit-line-clamp: 3;
             -webkit-box-orient: vertical;
-            flex-grow: 1;
+            margin-bottom: auto; /* 下に余白を作る */
         }
         
         /* バッジ */
@@ -142,6 +143,18 @@ def apply_portal_style():
             box-shadow: 0 6px 10px rgba(37, 99, 235, 0.3) !important;
             color: white !important;
         }
+        
+        /* セカンダリボタン (ピンク) */
+        .stButton button[kind="secondary"] {
+            background: #fff1f2 !important;
+            color: #e11d48 !important;
+            border: 1px solid #fecdd3 !important;
+        }
+        .stButton button[kind="secondary"]:hover {
+            background: #ffe4e6 !important;
+            border-color: #fda4af !important;
+            color: #be123c !important;
+        }
 
         /* リンクボタン (黒) */
         a[data-testid="stLinkButton"] {
@@ -152,9 +165,9 @@ def apply_portal_style():
             text-align: center !important;
             border-radius: 8px !important;
             transition: all 0.2s !important;
-            margin-top: auto !important; /* 下揃え */
+            margin-top: 5px !important;
             display: block !important;
-            padding: 10px !important;
+            padding: 0.6rem !important;
         }
         a[data-testid="stLinkButton"]:hover {
             background-color: #334155 !important;
@@ -201,6 +214,7 @@ HERO_HTML = """
 </div>
 """
 
+# カードの中身（画像とテキストのみHTMLで描画）
 def get_card_content_html(title, desc, img_url, views=0, likes=0):
     return f"""
     <div class="card-img-box">
@@ -212,4 +226,31 @@ def get_card_content_html(title, desc, img_url, views=0, likes=0):
         <div class="quiz-title">{title}</div>
         <div class="quiz-desc">{desc}</div>
     </div>
+    """
+
+# カスタムボタンHTML生成関数
+def get_custom_button_html(url, text, color="blue", target="_top"):
+    color_map = {
+        "blue": "background-color: #2563eb; color: white;",
+        "green": "background-color: #16a34a; color: white;",
+        "red": "background-color: #dc2626; color: white;",
+        "black": "background-color: #1e293b; color: white;"
+    }
+    style = color_map.get(color, color_map["blue"])
+    
+    return f"""
+    <a href="{url}" target="{target}" style="
+        display: block;
+        width: 100%;
+        padding: 0.75rem;
+        text-align: center;
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: bold;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: opacity 0.2s;
+        {style}
+    " onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+        {text}
+    </a>
     """
