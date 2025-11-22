@@ -5,6 +5,7 @@ from email.mime.text import MIMEText
 from supabase import create_client
 
 # HTMLテンプレート
+# JS部分に同点時のランダム処理とconsole.logを追加
 HTML_TEMPLATE_RAW = """<!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -82,13 +83,30 @@ HTML_TEMPLATE_RAW = """<!DOCTYPE html>
             }));
             results = Array.from(d.querySelectorAll('[data-container="results"] [data-item="result"]')).map(r => ({ id: r.dataset.id, html: r.innerHTML }));
         }
+
+        // 修正: 同点時の処理を改善
         function calcResult() {
             const s = {};
             userAnswers.forEach(a => { for(const t in a) s[t]=(s[t]||0)+a[t]; });
-            let max=-1, rid=null;
-            for(const r of results) { if((s[r.id]||0)>max) { max=s[r.id]; rid=r.id; } }
-            return results.find(r => r.id===rid);
+            
+            // デバッグ用ログ (ブラウザのコンソールF12で確認可能)
+            console.log("診断結果スコア:", s);
+            
+            let max = -1;
+            // まず最大値を見つける
+            for(const r of results) {
+                const score = s[r.id] || 0;
+                if(score > max) max = score;
+            }
+            
+            // 最大値を持つ結果をすべて候補としてリストアップ
+            const candidates = results.filter(r => (s[r.id] || 0) === max);
+            
+            // 候補の中からランダムに1つ選ぶ (同点時の偏りを防ぐ)
+            const winner = candidates[Math.floor(Math.random() * candidates.length)];
+            return winner;
         }
+
         function showResult() {
             const r = calcResult();
             quizArea.classList.add('hidden');
