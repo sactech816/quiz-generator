@@ -159,3 +159,18 @@ def get_card_content_html(title, desc, img_url):
         <div class="card-desc">{desc}</div>
     </div>
     """
+# ★カードの中身（統計情報付き）
+def get_card_content_html(title, desc, img_url, views=0, likes=0):
+    return f"""
+    <div class="card-img-box">
+        <span class="badge-new">NEW</span>
+        <div style="position:absolute; bottom:5px; right:5px; background:rgba(0,0,0,0.6); color:white; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:bold;">
+            👁️ {views} &nbsp; ❤️ {likes}
+        </div>
+        <img src="{img_url}" class="card-img" loading="lazy">
+    </div>
+    <div class="card-text-box">
+        <div class="card-title">{title}</div>
+        <div class="card-desc">{desc}</div>
+    </div>
+    """
