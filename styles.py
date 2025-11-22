@@ -10,8 +10,6 @@ def apply_portal_style():
         /* 全体設定 */
         .stApp { background-color: #ffffff !important; color: #333333 !important; }
         .block-container { max-width: 1100px; padding-top: 1rem; padding-bottom: 5rem; }
-        
-        /* 不要な要素を隠す */
         #MainMenu, footer, header {visibility: hidden;}
         .stDeployButton {display:none;}
         
@@ -37,16 +35,16 @@ def apply_portal_style():
             box-shadow: 0 2px 4px rgba(0,0,0,0.02);
             transition: transform 0.2s, box-shadow 0.2s;
             margin-bottom: 10px;
+            cursor: pointer;
             position: relative;
         }
-        
         .quiz-card:hover {
             transform: translateY(-3px);
             box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
             border-color: #cbd5e1;
         }
         
-        /* サムネイル */
+        /* 画像エリア */
         .quiz-thumb-box {
             width: 100%;
             height: 160px;
@@ -58,11 +56,11 @@ def apply_portal_style():
             width: 100%;
             height: 100%;
             object-fit: cover;
-            transition: transform 0.3s;
+            transition: transform 0.5s ease;
         }
         .quiz-card:hover .quiz-thumb { transform: scale(1.05); }
         
-        /* コンテンツ */
+        /* コンテンツエリア */
         .quiz-content { padding: 16px; flex-grow: 1; display:flex; flex-direction:column; }
         .quiz-title { 
             font-weight: bold; font-size: 1.1rem; margin-bottom: 8px; color: #1e293b; 
@@ -77,38 +75,29 @@ def apply_portal_style():
             display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
         }
         
-        /* バッジ類 */
+        /* バッジ */
         .badge-new { 
-            position: absolute; top: 10px; left: 10px; z-index: 10;
-            background: rgba(255, 255, 255, 0.95); color: #1e40af; 
-            padding: 2px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: 800; 
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: absolute; top: 10px; left: 10px; 
+            background: rgba(255,255,255,0.9); color: #1e40af; 
+            font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; z-index: 2;
         }
-        
         .badge-stats {
-            position: absolute; bottom: 10px; right: 10px; z-index: 10;
-            background: rgba(0, 0, 0, 0.6); color: white;
-            padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: bold;
-            backdrop-filter: blur(4px);
+            position: absolute; bottom: 5px; right: 5px;
+            background: rgba(0,0,0,0.6); color: white;
+            font-size: 0.7rem; padding: 2px 8px; border-radius: 12px; font-weight: bold; z-index: 2;
         }
         
-        /* ボタン類 */
+        /* ボタン */
         .stButton button[kind="primary"] {
             background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
-            color: white; border: none; font-size: 1.1rem; padding: 0.8rem;
-            box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
+            color: white; border: none;
         }
-        .stButton button[kind="primary"]:hover {
-            background: linear-gradient(135deg, #1d4ed8 0%, #4338ca 100%);
-            transform: scale(1.01);
-        }
-        
         .delete-btn button {
-            background-color: #fee2e2 !important; color: #991b1b !important; 
-            border: 1px solid #fecaca !important; font-size: 0.8rem !important; margin-top: 5px;
+            background-color: #fee2e2 !important; color: #991b1b !important; border: 1px solid #fecaca !important;
+            padding: 0.3rem 0.5rem !important; font-size: 0.8rem !important; margin-top: 5px; width: auto !important;
         }
         
-        /* ヒーロー */
+        /* ヒーローエリア */
         .hero-container {
             background: white; border-radius: 16px; padding: 3rem; margin-bottom: 2rem;
             box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; text-align: center;
@@ -135,7 +124,7 @@ HERO_HTML = """
 </div>
 """
 
-# ★引数を増やし、統計情報バッジを追加しました
+# ★ここを修正: リンク、閲覧数、いいね数を受け取る関数に統一
 def get_clickable_card_html(link, title, desc, img_url, views=0, likes=0):
     return f"""
     <a href="{link}" target="_top" class="quiz-card-link">
