@@ -25,14 +25,27 @@ def apply_portal_style():
         /* 4. 装飾ライン (上部の虹色ライン) */
         [data-testid="stDecoration"] { display: none !important; }
         
-        /* 5. フッター ("Made with Streamlit"など) */
-        footer { display: none !important; }
+        /* 5. フッター ("Hosted with Streamlit"など) 
+           display:noneだと消えないことがあるため、visibility:hiddenで透明にして高さを0にする */
+        footer { 
+            visibility: hidden !important; 
+            height: 0px !important;
+            padding: 0px !important;
+            margin: 0px !important;
+        }
         
         /* 6. ステータスウィジェット (右下のRunningアニメーションやManage appの一部) */
-        [data-testid="stStatusWidget"] { display: none !important; }
+        [data-testid="stStatusWidget"] { 
+            display: none !important; 
+            visibility: hidden !important;
+        }
         
         /* 7. ハンバーガーメニュー */
         #MainMenu { display: none !important; }
+        
+        /* 8. ビューワーバッジ（プロフィールアイコン等） 
+           ※Streamlit Cloudの仕様変更でクラス名が変わる可能性があります */
+        .viewerBadge_container__1QSob { display: none !important; }
         
         /* --- カードデザイン (高さ固定) --- */
         a.quiz-card-link {
@@ -221,7 +234,15 @@ def apply_editor_style():
         .stDeployButton { display: none !important; }
         [data-testid="stToolbar"] { display: none !important; }
         [data-testid="stDecoration"] { display: none !important; }
-        footer { display: none !important; }
+        
+        /* フッター隠し */
+        footer { 
+            visibility: hidden !important; 
+            height: 0px !important;
+            padding: 0px !important;
+            margin: 0px !important;
+        }
+        
         [data-testid="stStatusWidget"] { display: none !important; }
         #MainMenu { display: none !important; }
         
