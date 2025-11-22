@@ -6,17 +6,12 @@ import time
 import stripe
 import streamlit.components.v1 as components
 
-# --- 分割したファイルをインポート ---
 import styles
 import logic
 
-# 日本語文字化け防止
 os.environ["PYTHONIOENCODING"] = "utf-8"
-
-# ページ設定
 st.set_page_config(page_title="Diagnosis Portal", page_icon="💎", layout="wide")
 
-# --- 初期設定 ---
 if "stripe" in st.secrets: stripe.api_key = st.secrets["stripe"]["api_key"]
 supabase = logic.init_supabase()
 
@@ -27,18 +22,13 @@ init_state('ai_count', 0)
 init_state('page_mode', 'home')
 AI_LIMIT = 5
 
-# ==========================================
-# メイン処理 (分岐ロジック)
-# ==========================================
 query_params = st.query_params
 quiz_id = query_params.get("id", None)
 session_id = query_params.get("session_id", None)
 
-# --- 🅰️ プレイ画面 (Web公開) ---
+# --- 🅰️ プレイ画面 ---
 if quiz_id:
-    # 白背景デザイン適用
     styles.apply_portal_style()
-
     if not supabase: st.stop()
     try:
         res = supabase.table("quizzes").select("*").eq("id", quiz_id).execute()
@@ -46,15 +36,11 @@ if quiz_id:
             st.error("診断が見つかりません。")
             if st.button("トップへ戻る"): st.query_params.clear(); st.rerun()
             st.stop()
-        
         data = res.data[0]['content']
         html_content = logic.generate_html_content(data)
         components.html(html_content, height=800, scrolling=True)
-        
         st.markdown('<div style="text-align:center;margin-top:20px;">', unsafe_allow_html=True)
-        if st.button("🏠 ポータルトップへ戻る"):
-            st.query_params.clear()
-            st.rerun()
+        if st.button("🏠 ポータルトップへ戻る"): st.query_params.clear(); st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
     except Exception as e: st.error(e)
 
@@ -70,7 +56,6 @@ elif session_id:
                 data = res.data[0]['content']
                 st.balloons()
                 st.success("✅ お支払いが完了しました！")
-                
                 final_html = logic.generate_html_content(data)
                 st.download_button("📥 HTMLをダウンロード", final_html, "diagnosis.html", "text/html", type="primary")
                 if st.button("トップに戻る"): st.query_params.clear(); st.rerun()
@@ -80,26 +65,21 @@ elif session_id:
 # --- 🆑 ポータル & 作成画面 ---
 else:
     if st.session_state.page_mode == 'home':
-        # ポータルは白背景
         styles.apply_portal_style()
         
-        # 1. ナビゲーション
-        c_title, c_search = st.columns([1, 2])
-        with c_title: st.markdown("### 💎 診断クイズメーカー")
-        with c_search: st.text_input("search", label_visibility="collapsed", placeholder="🔍 キーワード検索...")
+        c1, c2 = st.columns([1, 2])
+        with c1: st.markdown("### 💎 診断クイズメーカー")
+        with c2: st.text_input("search", label_visibility="collapsed", placeholder="🔍 キーワード検索...")
         st.write("") 
 
-        # 2. ヒーローセクション (styles.pyから呼び出し)
+        # styles.pyからHTMLを呼び出し
         st.markdown(styles.HERO_HTML, unsafe_allow_html=True)
         
-        # 3. 作成ボタン
-        col_btn1, col_btn2, col_btn3 = st.columns([1, 2, 1])
-        with col_btn2:
-            if st.button("✨ 新しい診断を作成する", type="primary", use_container_width=True):
-                st.session_state.page_mode = 'create'; st.rerun()
-        st.write("")
+        st.markdown('<div style="text-align:center; margin-bottom:40px;">', unsafe_allow_html=True)
+        if st.button("✨ 新しい診断を作成する", type="primary", use_container_width=True):
+            st.session_state.page_mode = 'create'; st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 
-        # 4. ギャラリー
         st.markdown("### 📚 新着の診断")
         if supabase:
             res = supabase.table("quizzes").select("*").eq("is_public", True).order("created_at", desc=True).limit(12).execute()
@@ -108,23 +88,19 @@ else:
                 for i, q in enumerate(res.data):
                     with cols[i % 3]:
                         content = q.get('content', {})
-                        # 画像キーワード (ない場合はrandom)
                         keyword = content.get('image_keyword', 'abstract')
-                        # IDを混ぜてユニークな画像にする
                         img_url = f"https://image.pollinations.ai/prompt/{keyword}%20{q['id'][:4]}?width=400&height=250&nologo=true"
                         
-                        # カード表示 (styles.pyの関数)
+                        # styles.pyの関数を使用
                         st.markdown(styles.get_card_html(q.get('title','無題'), content.get('intro_text',''), img_url), unsafe_allow_html=True)
                         
                         base = "https://shindan-quiz-maker.streamlit.app"
-                        # カードの下にボタン
-                        st.markdown(f'<div style="margin-top:10px; text-align:center;"><a href="{base}/?id={q["id"]}" target="_top" style="display:block; background:#1e293b; color:white; padding:8px; border-radius:6px; text-decoration:none; font-weight:bold;">▶ 今すぐ診断する</a></div>', unsafe_allow_html=True)
-                        st.write("") # 余白
+                        st.markdown(f'<div style="margin-top:10px; text-align:center;"><a href="{base}/?id={q["id"]}" target="_top" style="display:block; background:#1e293b; color:white; padding:10px; border-radius:6px; text-decoration:none; font-weight:bold;">▶ 今すぐ診断する</a></div>', unsafe_allow_html=True)
+                        st.write("") 
             else:
                 st.info("まだ投稿がありません")
 
     elif st.session_state.page_mode == 'create':
-        # エディタは黒背景 (標準)
         styles.apply_editor_style()
         
         if st.button("← ポータルへ戻る"):
@@ -132,7 +108,6 @@ else:
             
         st.title("📝 診断作成エディタ")
         
-        # AIサイドバー
         with st.sidebar:
             if "OPENAI_API_KEY" in st.secrets: api_key = st.secrets["OPENAI_API_KEY"]
             else: st.error("APIキー設定なし"); st.stop()
@@ -167,7 +142,6 @@ else:
                         response_format={"type":"json_object"}
                     )
                     data = json.loads(res.choices[0].message.content)
-                    
                     st.session_state['page_title'] = data.get('page_title','')
                     st.session_state['main_heading'] = data.get('main_heading','')
                     st.session_state['intro_text'] = data.get('intro_text','')
@@ -186,11 +160,9 @@ else:
                             for j,a in enumerate(q.get('answers',[])):
                                 st.session_state[f'q{i+1}_a{j+1}_text'] = a.get('text','')
                                 st.session_state[f'q{i+1}_a{j+1}_type'] = a.get('type','A')
-                    
                     msg.success("完了！"); time.sleep(0.5); st.rerun()
                 except Exception as e: st.error(e)
 
-        # フォーム入力
         init_state('page_title',''); init_state('main_heading',''); init_state('intro_text',''); init_state('image_keyword','')
         
         with st.form("editor"):
