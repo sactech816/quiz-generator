@@ -28,7 +28,7 @@ def init_state(key, val):
 init_state('ai_count', 0)
 init_state('page_mode', 'home')
 init_state('is_admin', False)
-init_state('draft_data', None)
+init_state('draft_data', None) # フォームの一時保存用
 
 AI_LIMIT = 5
 
@@ -51,6 +51,7 @@ if quiz_id:
     if not supabase:
         st.stop()
     try:
+        # PVカウントアップ
         if f"viewed_{quiz_id}" not in st.session_state:
             logic.increment_views(supabase, quiz_id)
             st.session_state[f"viewed_{quiz_id}"] = True
@@ -154,10 +155,12 @@ else:
                                 ), 
                                 unsafe_allow_html=True
                             )
+                            
                             st.markdown(
                                 styles.get_custom_button_html(link_url, "▶ 今すぐ診断する", "green"),
                                 unsafe_allow_html=True
                             )
+                            
                             if st.session_state.is_admin:
                                 st.markdown('<div class="delete-btn">', unsafe_allow_html=True)
                                 if st.button("🗑️ 削除", key=f"del_{q['id']}"):
@@ -190,6 +193,7 @@ else:
             
             st.header("🧠 AIアシスタント")
             
+            # ★ヒントを追加
             theme_placeholder = """【良い診断を作るためのヒント】
 1. ターゲット：誰に向けた診断か？ (例: 30代の婚活女性、フリーランス、猫好き)
 2. テーマ：何を診断するのか？ (例: 隠れた才能、相性の良いアロマ、運命の相手)
@@ -199,6 +203,7 @@ else:
 30代の起業を目指す人向けに、向いているビジネスモデルを診断して。
 辛口かつ論理的なアドバイスで、背中を押してほしい。"""
 
+            # ★縦幅を拡張 (height=300)
             theme = st.text_area("テーマ・詳細設定", height=300, placeholder=theme_placeholder)
             st.caption("※AIの文章作成には10秒〜30秒ほどかかります。")
             
@@ -305,7 +310,7 @@ else:
                     
                     with st.expander("LINE登録誘導を追加する"):
                         line_u = st.text_input("LINE公式アカウントURL", key=f'res_line_url_{t}')
-                        line_t = st.text_area("誘導文", key=f'res_line_text_{t}')
+                        line_t = st.text_area("誘導文 (例: 登録で特典プレゼント)", key=f'res_line_text_{t}')
                         line_i = st.text_input("画像URL (任意)", key=f'res_line_img_{t}')
                     
                     res_obj[t] = {
@@ -359,7 +364,7 @@ else:
             st.markdown("---")
             st.subheader("📤 公開方法を選択")
             
-            # ボタンを縦に並べる (use_container_width=True)
+            # ボタンを縦に並べる
             sub_free = st.button("🌐 URL発行 (無料) - ポータルに自動掲載", type="primary", use_container_width=True)
             
             st.write("") # スペース
@@ -389,7 +394,7 @@ else:
                                 st.success("公開しました！メールを確認してください")
                                 st.balloons()
                                 time.sleep(2)
-                                st.session_state.draft_data = None
+                                st.session_state.draft_data = None # クリア
                                 st.session_state.page_mode='home'
                                 st.rerun()
                             else:
