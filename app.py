@@ -4,10 +4,11 @@ import openai
 import os
 import time
 import stripe
+import smtplib
+import random
+from email.mime.text import MIMEText
+from supabase import create_client, Client
 import streamlit.components.v1 as components
-
-import styles
-import logic
 
 # 日本語文字化け防止
 os.environ["PYTHONIOENCODING"] = "utf-8"
@@ -15,15 +16,459 @@ os.environ["PYTHONIOENCODING"] = "utf-8"
 # ページ設定
 st.set_page_config(page_title="診断クイズメーカー", page_icon="💎", layout="wide")
 
-# --- 初期設定 ---
-if "stripe" in st.secrets:
-    stripe.api_key = st.secrets["stripe"]["api_key"]
+# ==========================================
+# 1. デザイン定義 (CSS)
+# ==========================================
+def apply_portal_style():
+    """公開画面用の白ベースデザイン"""
+    st.markdown("""
+        <style>
+        /* 全体設定 */
+        .stApp { background-color: #ffffff !important; color: #333333 !important; }
+        .block-container { max-width: 1100px; padding-top: 1rem; padding-bottom: 5rem; }
+        
+        /* UI隠し */
+        #MainMenu, footer, header {visibility: hidden !important;} 
+        .stDeployButton {display:none !important;}
+        [data-testid="stToolbar"] {display: none !important;}
+        [data-testid="stDecoration"] {display: none !important;}
+        [data-testid="stStatusWidget"] {visibility: hidden !important;}
+        
+        /* --- カードデザイン --- */
+        a.quiz-card-link {
+            text-decoration: none !important;
+            color: inherit !important;
+            display: block !important;
+        }
+        a.quiz-card-link:hover { text-decoration: none !important; }
 
-supabase = logic.init_supabase()
+        /* カード本体 */
+        .quiz-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            overflow: hidden;
+            height: 420px; /* 高さを確保 */
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            transition: all 0.2s ease-in-out;
+            margin-bottom: 10px;
+            cursor: pointer;
+            position: relative;
+        }
+        
+        .quiz-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+            border-color: #cbd5e1;
+        }
+        
+        /* 画像エリア */
+        .quiz-thumb-box {
+            width: 100%;
+            height: 180px; /* 画像高さ固定 */
+            background-color: #f1f5f9;
+            overflow: hidden;
+            position: relative;
+            flex-shrink: 0;
+        }
+        .quiz-thumb {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.5s ease;
+        }
+        .quiz-card:hover .quiz-thumb { transform: scale(1.05); }
+        
+        /* コンテンツエリア */
+        .quiz-content {
+            padding: 16px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+        }
+        
+        /* タイトル (2行制限) */
+        .quiz-title { 
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-bottom: 8px;
+            color: #1e293b;
+            line-height: 1.4;
+            height: 2.8em;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+        
+        /* 説明文 (3行制限) */
+        .quiz-desc { 
+            font-size: 0.85rem;
+            color: #64748b;
+            line-height: 1.5;
+            height: 4.5em;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            margin-bottom: auto; /* 下に余白を作る */
+        }
+        
+        /* バッジ */
+        .badge-new { 
+            position: absolute; top: 10px; left: 10px; 
+            background: rgba(255,255,255,0.9); color: #1e40af; 
+            font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; z-index: 2;
+        }
+        .badge-stats {
+            position: absolute; bottom: 5px; right: 5px;
+            background: rgba(0,0,0,0.6); color: white;
+            font-size: 0.7rem; padding: 2px 8px; border-radius: 12px; font-weight: bold; z-index: 2;
+        }
+        
+        /* ボタン */
+        .stButton button {
+            background-color: #ffffff !important;
+            border: 1px solid #cbd5e1 !important;
+            color: #334155 !important;
+            border-radius: 8px !important;
+            font-weight: bold !important;
+            padding: 0.6rem 1rem !important;
+            transition: all 0.2s !important;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
+        }
+        .stButton button:hover {
+            border-color: #94a3b8 !important;
+            background-color: #f1f5f9 !important;
+            color: #1e293b !important;
+            transform: translateY(-1px);
+        }
+        
+        /* プライマリボタン (青) */
+        .stButton button[kind="primary"] {
+            background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%) !important;
+            color: white !important;
+            border: none !important;
+            box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2) !important;
+        }
+        .stButton button[kind="primary"]:hover {
+            background: linear-gradient(135deg, #1d4ed8 0%, #4338ca 100%) !important;
+            box-shadow: 0 6px 10px rgba(37, 99, 235, 0.3) !important;
+            color: white !important;
+        }
+        
+        /* セカンダリボタン (ピンク) */
+        .stButton button[kind="secondary"] {
+            background: #fff1f2 !important;
+            color: #e11d48 !important;
+            border: 1px solid #fecdd3 !important;
+        }
+        .stButton button[kind="secondary"]:hover {
+            background: #ffe4e6 !important;
+            border-color: #fda4af !important;
+            color: #be123c !important;
+        }
+
+        /* リンクボタン (黒) */
+        a[data-testid="stLinkButton"] {
+            background-color: #1e293b !important;
+            color: #ffffff !important;
+            border: none !important;
+            font-weight: bold !important;
+            text-align: center !important;
+            border-radius: 8px !important;
+            transition: all 0.2s !important;
+            margin-top: 5px !important;
+            display: block !important;
+            padding: 0.6rem !important;
+        }
+        a[data-testid="stLinkButton"]:hover {
+            background-color: #334155 !important;
+            text-decoration: none !important;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2) !important;
+        }
+        
+        /* 削除ボタン */
+        .delete-btn button {
+            background-color: #fee2e2 !important; color: #991b1b !important; border: 1px solid #fecaca !important;
+            padding: 0.3rem 0.5rem !important; font-size: 0.8rem !important; margin-top: 5px; width: auto !important;
+        }
+
+        /* ヒーローエリア */
+        .hero-container {
+            background: white; border-radius: 16px; padding: 3rem; margin-bottom: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; text-align: center;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+def apply_editor_style():
+    """エディタ用の黒ベースデザイン"""
+    st.markdown("""
+        <style>
+        /* 強制ダークモード */
+        .stApp { background-color: #0e1117 !important; color: #ffffff !important; }
+        .stTextInput input, .stTextArea textarea, .stSelectbox select {
+            background-color: #262730 !important; color: #ffffff !important; border: 1px solid #41444e !important;
+        }
+        [data-testid="stVerticalBlockBorderWrapper"] { background-color: #262730 !important; border: 1px solid #41444e !important; }
+        
+        #MainMenu {visibility: hidden;}
+        .stDeployButton {display:none;}
+        .block-container { padding-top: 2rem; padding-bottom: 5rem; }
+        </style>
+    """, unsafe_allow_html=True)
+
+# HTMLパーツ
+HERO_HTML = """
+<div class="hero-container">
+    <h1 style="font-size:2.5rem; font-weight:900; color:#1e293b; margin-bottom:10px;">診断クイズメーカー</h1>
+    <p style="color:#64748b;">AIがたった1分で構成案を作成。集客・販促に使える高品質な診断ツールを今すぐ公開。</p>
+</div>
+"""
+
+# カードの中身（画像とテキストのみHTMLで描画）
+def get_card_content_html(title, desc, img_url, views=0, likes=0):
+    return f"""
+    <div class="card-img-box">
+        <span class="badge-new">NEW</span>
+        <span class="badge-stats">👁️ {views} &nbsp; ❤️ {likes}</span>
+        <img src="{img_url}" class="card-img" loading="lazy">
+    </div>
+    <div class="card-text-box">
+        <div class="card-title">{title}</div>
+        <div class="card-desc">{desc}</div>
+    </div>
+    """
+
+# カスタムボタンHTML生成関数
+def get_custom_button_html(url, text, color="blue", target="_top"):
+    color_map = {
+        "blue": "background-color: #2563eb; color: white;",
+        "green": "background-color: #16a34a; color: white;",
+        "red": "background-color: #dc2626; color: white;",
+        "black": "background-color: #1e293b; color: white;"
+    }
+    style = color_map.get(color, color_map["blue"])
+    
+    return f"""
+    <a href="{url}" target="{target}" style="
+        display: block;
+        width: 100%;
+        padding: 0.75rem;
+        text-align: center;
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: bold;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: opacity 0.2s;
+        {style}
+    " onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+        {text}
+    </a>
+    """
+
+# ==========================================
+# 2. ロジック・関数定義
+# ==========================================
+HTML_TEMPLATE_RAW = """<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>[[PAGE_TITLE]]</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --main-color: [[COLOR_MAIN]];
+            --sub-color: #f3f4f6;
+        }
+        body { font-family: 'Noto Sans JP', sans-serif; background-color: var(--sub-color); color: #1f2937; display: flex; flex-direction: column; min-height: 100vh; }
+        .quiz-container-wrapper { flex-grow: 1; display: flex; justify-content: center; align-items: flex-start; padding: 2rem; }
+        .quiz-container { max-width: 700px; width: 100%; padding: 2.5rem; background-color: white; border-radius: 0.75rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        .question-card, .result-card { padding: 1.5rem; border: 1px solid #e5e7eb; border-radius: 0.5rem; margin-bottom: 1.5rem; }
+        
+        .option-button { display: block; width: 100%; text-align: left; padding: 1rem 1.25rem; margin-bottom: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.375rem; background-color: #fff; transition: all 0.2s; cursor: pointer; }
+        .option-button:hover { background-color: #eff6ff; border-color: var(--main-color); color: var(--main-color); }
+        .option-button.selected { background-color: #dbeafe; border-color: var(--main-color); font-weight: 600; }
+        
+        .next-button, .restart-button { padding: 0.85rem 2rem; border-radius: 0.375rem; font-weight: 600; transition: all 0.2s; text-align: center; display: inline-block; cursor: pointer; width: 100%; border: none; color: white; background-color: var(--main-color); }
+        .next-button:disabled { background-color: #9ca3af; cursor: not-allowed; }
+        .restart-button { background-color: #4b5563; margin-top: 1rem; }
+        
+        .progress-bar-container { width: 100%; background-color: #e5e7eb; border-radius: 99px; overflow: hidden; margin-bottom: 1.5rem; }
+        .progress-bar { height: 0.5rem; background-color: var(--main-color); width: 0%; transition: width 0.3s ease-in-out; }
+        
+        .hidden { display: none; }
+        .result-title { font-size: 1.75rem; font-weight: 700; color: var(--main-color); margin-bottom: 1rem; text-align: center; }
+        .result-text { line-height: 1.8; color: #4b5563; }
+        
+        .flyer-link-button { background-color: var(--main-color); color: white; text-decoration: none; display: block; padding: 1rem; border-radius: 0.375rem; text-align: center; font-weight: bold; transition: transform 0.2s; }
+        .flyer-link-button:hover { transform: scale(1.02); }
+        
+        .line-section { background-color: #f0fdf4; border: 2px solid #22c55e; border-radius: 10px; padding: 20px; margin-top: 30px; text-align: center; }
+        .line-title { color: #15803d; font-weight: bold; font-size: 1.1rem; margin-bottom: 10px; }
+        .line-desc { font-size: 0.9rem; color: #333; margin-bottom: 15px; }
+        .line-btn { background-color: #06c755; color: white; font-weight: bold; padding: 10px 30px; border-radius: 50px; text-decoration: none; display: inline-block; }
+        .line-img { max-width: 150px; margin: 10px auto; display: block; }
+    </style>
+</head>
+<body>
+    <div id="quiz-data" style="display: none;">
+        <div data-container="questions">[[QUESTIONS_HTML]]</div>
+        <div data-container="results">[[RESULTS_HTML]]</div>
+    </div>
+    <div class="quiz-container-wrapper">
+        <div class="quiz-container">
+            <h1 class="text-2xl font-bold text-center mb-4 text-slate-800">[[MAIN_HEADING]]</h1>
+            <p class="text-center text-gray-600 mb-8">[[INTRO_TEXT]]</p>
+            <div id="quiz-area"></div>
+            <div id="result-area" class="hidden"></div>
+        </div>
+    </div>
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        let questions = [], results = [], currentQuestionIndex = 0, userAnswers = [];
+        const quizArea = document.getElementById('quiz-area'), resultArea = document.getElementById('result-area');
+        
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function loadData() {
+            const d = document.getElementById('quiz-data');
+            questions = Array.from(d.querySelectorAll('[data-container="questions"] [data-item="question"]')).map(q => ({
+                text: q.querySelector('[data-key="text"]').textContent,
+                options: shuffle(Array.from(q.querySelectorAll('[data-key="option"]')).map(o => ({ text: o.textContent, points: JSON.parse(o.dataset.points||'{}') })))
+            }));
+            results = Array.from(d.querySelectorAll('[data-container="results"] [data-item="result"]')).map(r => ({ id: r.dataset.id, html: r.innerHTML }));
+        }
+        function calcResult() {
+            const s = {};
+            userAnswers.forEach(a => { for(const t in a) s[t]=(s[t]||0)+a[t]; });
+            let max=-1, rid=null;
+            for(const r of results) { if((s[r.id]||0)>max) { max=s[r.id]; rid=r.id; } }
+            return results.find(r => r.id===rid);
+        }
+        function showResult() {
+            const r = calcResult();
+            quizArea.classList.add('hidden');
+            if(!r) return;
+            resultArea.innerHTML = `<div class="result-card">${r.html}</div><div class="mt-6 text-center"><button class="restart-button" onclick="location.reload()">もう一度診断する</button></div>`;
+            resultArea.classList.remove('hidden');
+        }
+        function dispQ() {
+            const q = questions[currentQuestionIndex];
+            const pct = ((currentQuestionIndex)/questions.length)*100;
+            quizArea.innerHTML = `
+                <div class="progress-bar-container"><div class="progress-bar" style="width: ${pct}%"></div></div>
+                <div class="question-card"><p class="text-lg font-bold mb-4 text-slate-700">Q${currentQuestionIndex+1}. ${q.text}</p>${q.options.map((o,i)=>`<button class="option-button" data-i="${i}">${o.text}</button>`).join('')}</div>
+                <div class="mt-6"><button class="next-button" disabled>次の質問へ</button></div>
+            `;
+            const nBtn = quizArea.querySelector('.next-button');
+            if(currentQuestionIndex===questions.length-1) nBtn.textContent="結果を見る";
+            quizArea.querySelectorAll('.option-button').forEach(b => b.addEventListener('click', e => {
+                quizArea.querySelectorAll('.option-button').forEach(btn=>btn.classList.remove('selected'));
+                e.target.classList.add('selected');
+                userAnswers[currentQuestionIndex] = q.options[e.target.dataset.i].points;
+                nBtn.disabled=false;
+            }));
+            nBtn.addEventListener('click', () => { if(userAnswers[currentQuestionIndex]==null)return; (currentQuestionIndex<questions.length-1)?(currentQuestionIndex++,dispQ()):showResult(); });
+        }
+        function startQuiz() { currentQuestionIndex=0; userAnswers=[]; resultArea.classList.add('hidden'); quizArea.classList.remove('hidden'); dispQ(); }
+        loadData(); startQuiz();
+    });
+    </script>
+</body>
+</html>"""
+
+def generate_html_content(data):
+    html = HTML_TEMPLATE_RAW
+    html = html.replace("[[PAGE_TITLE]]", data.get('page_title', '診断'))
+    html = html.replace("[[MAIN_HEADING]]", data.get('main_heading', 'タイトル'))
+    html = html.replace("[[INTRO_TEXT]]", data.get('intro_text', ''))
+    # ★カラー設定を反映
+    html = html.replace("[[COLOR_MAIN]]", data.get('color_main', '#2563eb'))
+    
+    q_html = ""
+    for q in data.get('questions', []):
+        o_html = ""
+        for ans in q['answers']:
+            pts = json.dumps({ans['type']: 1}, ensure_ascii=False).replace('"', '&quot;')
+            o_html += f'<div data-key="option" data-points="{pts}">{ans["text"]}</div>'
+        q_html += f'<div data-item="question"><p data-key="text">{q["question"]}</p><div data-key="options">{o_html}</div></div>'
+    html = html.replace("[[QUESTIONS_HTML]]", q_html)
+    
+    r_html = ""
+    for k, v in data.get('results', {}).items():
+        b_html = ""
+        if v.get('link') and v.get('btn'):
+            b_html = f'<div class="mt-6 text-center"><a href="{v["link"]}" target="_blank" class="flyer-link-button">{v["btn"]} ➤</a></div>'
+        
+        # ★LINE誘導エリア
+        line_html = ""
+        if v.get('line_url'):
+            img_tag = f'<img src="{v["line_img"]}" class="line-img">' if v.get('line_img') else ''
+            line_html = f"""<div class="line-section"><p class="line-title">🎁 無料プレゼント！</p><p class="line-desc">{v.get('line_text', '公式LINE登録で詳細解説をプレゼント中！')}</p>{img_tag}<a href="{v['line_url']}" target="_blank" class="line-btn">LINEで受け取る</a></div>"""
+        
+        r_html += f'<div data-item="result" data-id="{k}"><h2 data-key="title">{v["title"]}</h2><p data-key="description" class="result-text">{v["desc"]}</p>{b_html}{line_html}</div>'
+    
+    html = html.replace("[[RESULTS_HTML]]", r_html)
+    return html
+
+def send_email(to_email, quiz_url, quiz_title):
+    try:
+        sender_email = st.secrets["email"]["address"]
+        sender_password = st.secrets["email"]["password"]
+        msg = MIMEText(f"診断URL: {quiz_url}\nタイトル: {quiz_title}")
+        msg['Subject'] = "【診断クイズメーカー】URL発行のお知らせ"
+        msg['From'] = sender_email
+        msg['To'] = to_email
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(sender_email, sender_password)
+            server.send_message(msg)
+        return True
+    except: return False
+
+@st.cache_resource
+def init_supabase():
+    if "supabase" in st.secrets:
+        return create_client(st.secrets["supabase"]["url"], st.secrets["supabase"]["key"])
+    return None
+
+def delete_quiz(supabase, quiz_id):
+    try:
+        supabase.table("quizzes").delete().eq("id", quiz_id).execute()
+        return True
+    except: return False
+
+def increment_views(supabase, quiz_id):
+    try: supabase.rpc("increment_views", {"row_id": quiz_id}).execute()
+    except: pass
+
+def increment_likes(supabase, quiz_id):
+    try:
+        supabase.rpc("increment_likes", {"row_id": quiz_id}).execute()
+        return True
+    except: return False
+
+# ==========================================
+# 3. アプリ本編
+# ==========================================
+# 設定読み込み
+if "stripe" in st.secrets: stripe.api_key = st.secrets["stripe"]["api_key"]
+supabase = init_supabase()
 
 def init_state(key, val):
-    if key not in st.session_state:
-        st.session_state[key] = val
+    if key not in st.session_state: st.session_state[key] = val
 
 init_state('ai_count', 0)
 init_state('page_mode', 'home')
@@ -41,28 +486,23 @@ if query_params.get("admin") == "secret":
     st.session_state.is_admin = True
     st.toast("🔓 管理者モード")
 
-# ==========================================
-# メイン処理
-# ==========================================
-
-# --- 🅰️ プレイ画面 (Web公開) ---
+# --- 🅰️ プレイ画面 ---
 if quiz_id:
-    styles.apply_portal_style()
-    if not supabase:
-        st.stop()
+    apply_portal_style()
+    if not supabase: st.stop()
     try:
         if f"viewed_{quiz_id}" not in st.session_state:
-            logic.increment_views(supabase, quiz_id)
+            increment_views(supabase, quiz_id)
             st.session_state[f"viewed_{quiz_id}"] = True
 
         res = supabase.table("quizzes").select("*").eq("id", quiz_id).execute()
         if not res.data:
             st.error("診断が見つかりません。")
-            st.markdown(styles.get_custom_button_html("/", "🏠 トップページに戻る", "blue"), unsafe_allow_html=True)
+            st.markdown(get_custom_button_html("/", "🏠 トップページに戻る", "blue"), unsafe_allow_html=True)
             st.stop()
         
         data = res.data[0]['content']
-        html_content = logic.generate_html_content(data)
+        html_content = generate_html_content(data)
         components.html(html_content, height=800, scrolling=True)
         
         c_like, c_back = st.columns([1, 1])
@@ -72,20 +512,18 @@ if quiz_id:
                 st.button("❤️ いいね済み", disabled=True, use_container_width=True)
             else:
                 if st.button("🤍 この診断に「いいね」する", type="secondary", use_container_width=True):
-                    logic.increment_likes(supabase, quiz_id)
+                    increment_likes(supabase, quiz_id)
                     st.session_state[liked_key] = True
                     st.balloons()
                     st.rerun()
-        
         with c_back:
-            st.markdown(styles.get_custom_button_html("/", "🏠 ポータルトップへ戻る", "blue", target="_self"), unsafe_allow_html=True)
+            st.markdown(get_custom_button_html("/", "🏠 ポータルトップへ戻る", "blue", target="_self"), unsafe_allow_html=True)
 
-    except Exception as e:
-        st.error(e)
+    except Exception as e: st.error(e)
 
 # --- 🅱️ 決済完了画面 ---
 elif session_id:
-    styles.apply_portal_style()
+    apply_portal_style()
     try:
         session = stripe.checkout.Session.retrieve(session_id)
         if session.payment_status == 'paid':
@@ -96,10 +534,10 @@ elif session_id:
                 st.balloons()
                 st.success("✅ お支払いが完了しました！")
                 
-                final_html = logic.generate_html_content(data)
+                final_html = generate_html_content(data)
                 st.download_button("📥 HTMLをダウンロード", final_html, "diagnosis.html", "text/html", type="primary")
                 
-                st.markdown(styles.get_custom_button_html("/", "トップページに戻る", "blue", target="_self"), unsafe_allow_html=True)
+                st.markdown(get_custom_button_html("/", "トップページに戻る", "blue", target="_self"), unsafe_allow_html=True)
                 st.stop()
     except Exception as e:
         st.error(f"決済エラー: {e}")
@@ -108,7 +546,7 @@ elif session_id:
 else:
     # 1. ポータルトップ
     if st.session_state.page_mode == 'home':
-        styles.apply_portal_style()
+        apply_portal_style()
         
         c1, c2 = st.columns([1, 2])
         with c1:
@@ -117,7 +555,7 @@ else:
             st.text_input("search", label_visibility="collapsed", placeholder="🔍 キーワード検索...")
         st.write("") 
 
-        st.markdown(styles.HERO_HTML, unsafe_allow_html=True)
+        st.markdown(HERO_HTML, unsafe_allow_html=True)
         
         st.markdown('<div class="big-create-btn">', unsafe_allow_html=True)
         if st.button("✨ 新しい診断を作成する", type="primary", use_container_width=True):
@@ -145,7 +583,7 @@ else:
                         
                         with st.container(border=True):
                             st.markdown(
-                                styles.get_card_content_html(
+                                get_card_content_html(
                                     q.get('title','無題'), 
                                     content.get('intro_text',''), 
                                     img_url, 
@@ -156,14 +594,14 @@ else:
                             )
                             
                             st.markdown(
-                                styles.get_custom_button_html(link_url, "▶ 今すぐ診断する", "green"),
+                                get_custom_button_html(link_url, "▶ 今すぐ診断する", "green"),
                                 unsafe_allow_html=True
                             )
                             
                             if st.session_state.is_admin:
                                 st.markdown('<div class="delete-btn">', unsafe_allow_html=True)
                                 if st.button("🗑️ 削除", key=f"del_{q['id']}"):
-                                    if logic.delete_quiz(supabase, q['id']):
+                                    if delete_quiz(supabase, q['id']):
                                         st.toast("削除しました")
                                         time.sleep(1)
                                         st.rerun()
@@ -174,7 +612,7 @@ else:
 
     # 2. 作成エディタ
     elif st.session_state.page_mode == 'create':
-        styles.apply_editor_style()
+        apply_editor_style()
         
         if st.button("← ポータルへ戻る"):
             st.session_state.page_mode = 'home'
@@ -219,7 +657,7 @@ else:
                         【絶対厳守】
                         1. 質問は「必ず5問」作成すること。
                         2. 選択肢は「必ず4つ」作成すること。
-                        3. 結果パターンは「必ず3つ（A, B, C）」作成すること。
+                        3. 結果は「必ず3つ（A, B, C）」作成すること。
                         4. JSONのみ出力
                         出力JSON:
                         {{
