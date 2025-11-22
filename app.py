@@ -10,7 +10,7 @@ import styles
 import logic
 
 os.environ["PYTHONIOENCODING"] = "utf-8"
-st.set_page_config(page_title="診断クイズメーカー", page_icon="🔮", layout="wide")
+st.set_page_config(page_title="診断クイズメーカー", page_icon="💎", layout="wide")
 
 if "stripe" in st.secrets: stripe.api_key = st.secrets["stripe"]["api_key"]
 supabase = logic.init_supabase()
@@ -20,23 +20,17 @@ def init_state(key, val):
 
 init_state('ai_count', 0)
 init_state('page_mode', 'home')
-init_state('is_admin', False) # 管理者フラグ
+init_state('is_admin', False)
 AI_LIMIT = 5
 
 query_params = st.query_params
 quiz_id = query_params.get("id", None)
 session_id = query_params.get("session_id", None)
 
-# --- 管理者判定 (秘密のURLパラメータ) ---
-# URLの末尾に ?admin=secret_pass とつけると管理者モードになる
-# (実際はもっと複雑なパスワードにしてください)
+# --- 管理者判定 ---
 if query_params.get("admin") == "secret":
     st.session_state.is_admin = True
-    st.toast("🔓 管理者モードでログインしました")
-
-# ==========================================
-# メイン処理
-# ==========================================
+    st.toast("🔓 管理者モード")
 
 # --- 🅰️ プレイ画面 ---
 if quiz_id:
@@ -58,7 +52,7 @@ if quiz_id:
         st.markdown('</div>', unsafe_allow_html=True)
     except Exception as e: st.error(e)
 
-# --- 🅱️ 決済完了画面 ---
+# --- 🅱️ 決済完了 ---
 elif session_id:
     styles.apply_portal_style()
     try:
@@ -76,12 +70,12 @@ elif session_id:
                 st.stop()
     except Exception as e: st.error(f"決済エラー: {e}")
 
-# --- 🆑 ポータル & 作成画面 ---
+# --- 🆑 ポータル & 作成 ---
 else:
     if st.session_state.page_mode == 'home':
         styles.apply_portal_style()
         
-        # ナビゲーション
+        # ナビ
         c1, c2 = st.columns([1, 2])
         with c1: st.markdown("### 💎 診断クイズメーカー")
         with c2: st.text_input("search", label_visibility="collapsed", placeholder="🔍 キーワード検索...")
@@ -91,10 +85,11 @@ else:
         st.markdown(styles.HERO_HTML, unsafe_allow_html=True)
         
         # 作成ボタン
-        st.markdown('<div style="max-width:600px; margin:0 auto;">', unsafe_allow_html=True)
+        st.markdown('<div class="big-create-btn">', unsafe_allow_html=True)
         if st.button("✨ 新しい診断を作成する", type="primary", use_container_width=True):
             st.session_state.page_mode = 'create'; st.rerun()
-        st.markdown('</div><br>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+        st.write("")
 
         # ギャラリー
         st.markdown("### 📚 新着の診断")
@@ -105,41 +100,41 @@ else:
                 for i, q in enumerate(res.data):
                     with cols[i % 3]:
                         content = q.get('content', {})
-                        # 高速化: 画像サイズ指定
+                        # 画像
                         keyword = content.get('image_keyword', 'abstract')
                         seed = q['id'][-4:] 
-                        img_url = f"https://image.pollinations.ai/prompt/{keyword}%20{seed}?width=350&height=160&nologo=true"
+                        img_url = f"https://image.pollinations.ai/prompt/{keyword}%20{seed}?width=350&height=180&nologo=true"
                         
-                        # カード表示
-                        st.markdown(styles.get_card_html(q.get('title','無題'), content.get('intro_text',''), img_url), unsafe_allow_html=True)
-                        
-                        # ボタン類
+                        # ★リンクURL
                         base = "https://shindan-quiz-maker.streamlit.app"
-                        st.link_button("▶ 今すぐ診断する", f"{base}/?id={q['id']}", use_container_width=True)
+                        link_url = f"{base}/?id={q['id']}"
                         
-                        # ★管理者のみ表示される削除ボタン★
+                        # ★カード全体をクリック可能にするHTMLを表示
+                        st.markdown(
+                            styles.get_clickable_card_html(link_url, q.get('title','無題'), content.get('intro_text',''), img_url), 
+                            unsafe_allow_html=True
+                        )
+                        
+                        # 管理者削除ボタン
                         if st.session_state.is_admin:
+                            st.markdown('<div class="delete-wrapper">', unsafe_allow_html=True)
                             st.markdown('<div class="delete-btn">', unsafe_allow_html=True)
-                            if st.button("🗑️ 削除", key=f"del_{q['id']}", use_container_width=True):
+                            if st.button("🗑️ 削除", key=f"del_{q['id']}"):
                                 if logic.delete_quiz(supabase, q['id']):
                                     st.toast("削除しました", icon="🗑️")
-                                    time.sleep(1)
-                                    st.rerun()
-                            st.markdown('</div>', unsafe_allow_html=True)
-                        
-                        st.write("") 
+                                    time.sleep(1); st.rerun()
+                            st.markdown('</div></div>', unsafe_allow_html=True)
+                        else:
+                            st.write("") # レイアウト調整用の余白
             else:
                 st.info("まだ投稿がありません")
 
     elif st.session_state.page_mode == 'create':
         styles.apply_editor_style()
-        
         if st.button("← ポータルへ戻る"):
             st.session_state.page_mode = 'home'; st.rerun()
-            
         st.title("📝 診断作成エディタ")
         
-        # AIサイドバー (省略せず記述)
         with st.sidebar:
             if "OPENAI_API_KEY" in st.secrets: api_key = st.secrets["OPENAI_API_KEY"]
             else: st.error("APIキー設定なし"); st.stop()
@@ -191,7 +186,6 @@ else:
                     msg.success("完了！"); time.sleep(0.5); st.rerun()
                 except Exception as e: st.error(e)
 
-        # フォーム入力
         init_state('page_title',''); init_state('main_heading',''); init_state('intro_text',''); init_state('image_keyword','')
         
         with st.form("editor"):
