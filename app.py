@@ -195,66 +195,80 @@ else:
                 st.stop()
             
             st.header("🧠 AIアシスタント")
-            theme = st.text_area("テーマ", "例：30代女性向けの辛口婚活診断")
             
-            # ★注意書きを追加
+            # ★ヒントをプレースホルダーに追加してわかりやすく
+            theme_placeholder = """【良い診断を作るためのヒント】
+1. ターゲット：誰に向けた診断か？ (例: 30代の婚活女性、フリーランス、猫好き)
+2. テーマ：何を診断するのか？ (例: 隠れた才能、相性の良いアロマ、運命の相手)
+3. トーン：どんな口調か？ (例: 辛口でズバッと言う、優しく寄り添う、関西弁で)
+
+(入力例)
+30代の起業を目指す人向けに、向いているビジネスモデルを診断して。
+辛口かつ論理的なアドバイスで、背中を押してほしい。"""
+
+            # ★縦幅を広げました (height=300)
+            theme = st.text_area("テーマ・詳細設定", height=300, placeholder=theme_placeholder)
+            
             st.caption("※AIの文章作成には10秒〜30秒ほどかかります。")
             
             if st.button("AIで構成案を作成", type="primary"):
-                try:
-                    msg = st.empty()
-                    msg.info("AIが執筆中... (最大30秒かかります)")
-                    client = openai.OpenAI(api_key=api_key)
-                    
-                    prompt = f"""
-                    あなたはプロの診断作家です。テーマ: {theme}
-                    【絶対厳守】
-                    1. 質問は「必ず5問」
-                    2. 選択肢は「必ず4つ」
-                    3. 結果は「必ず3つ（A, B, C）」
-                    4. JSONのみ出力
-                    出力JSON:
-                    {{
-                        "page_title": "", "main_heading": "", "intro_text": "", "image_keyword": "英単語1語",
-                        "results": {{ "A": {{ "title": "", "desc": "600字", "btn": "", "link":"" }}, "B": {{...}}, "C": {{...}} }},
-                        "questions": [ {{ "question": "", "answers": [ {{ "text": "", "type": "A" }}, {{ "text": "", "type": "B" }}, {{ "text": "", "type": "C" }}, {{ "text": "", "type": "A" }} ] }} ]
-                    }}
-                    """
-                    res = client.chat.completions.create(
-                        model="gpt-4o-mini", 
-                        messages=[{"role":"system","content":"Output JSON only"}, {"role":"user","content":prompt}], 
-                        response_format={"type":"json_object"}
-                    )
-                    data = json.loads(res.choices[0].message.content)
-                    
-                    st.session_state['page_title'] = data.get('page_title','')
-                    st.session_state['main_heading'] = data.get('main_heading','')
-                    st.session_state['intro_text'] = data.get('intro_text','')
-                    st.session_state['image_keyword'] = data.get('image_keyword', 'random')
-                    
-                    if 'results' in data:
-                        for t in ['A','B','C']:
-                            if t in data['results']:
-                                r = data['results'][t]
-                                st.session_state[f'res_title_{t}'] = r.get('title','')
-                                st.session_state[f'res_desc_{t}'] = r.get('desc','')
-                                st.session_state[f'res_btn_{t}'] = r.get('btn','')
-                                st.session_state[f'res_link_{t}'] = r.get('link','')
-                    
-                    if 'questions' in data:
-                        for i,q in enumerate(data['questions']):
-                            if i>=5: break
-                            st.session_state[f'q_text_{i+1}'] = q.get('question','')
-                            for j,a in enumerate(q.get('answers',[])):
-                                if j>=4: break
-                                st.session_state[f'q{i+1}_a{j+1}_text'] = a.get('text','')
-                                st.session_state[f'q{i+1}_a{j+1}_type'] = a.get('type','A')
-                                
-                    msg.success("完了！")
-                    time.sleep(0.5)
-                    st.rerun()
-                except Exception as e:
-                    st.error(e)
+                if not theme:
+                    st.warning("テーマを入力してください")
+                else:
+                    try:
+                        msg = st.empty()
+                        msg.info("AIが執筆中... (最大30秒かかります)")
+                        client = openai.OpenAI(api_key=api_key)
+                        
+                        prompt = f"""
+                        あなたはプロの診断作家です。テーマ: {theme}
+                        【絶対厳守】
+                        1. 質問は「必ず5問」作成すること。
+                        2. 選択肢は「必ず4つ」作成すること。
+                        3. 結果は「必ず3つ（A, B, C）」作成すること。
+                        4. JSONのみ出力
+                        出力JSON:
+                        {{
+                            "page_title": "", "main_heading": "", "intro_text": "", "image_keyword": "英単語1語",
+                            "results": {{ "A": {{ "title": "", "desc": "600字", "btn": "", "link":"" }}, "B": {{...}}, "C": {{...}} }},
+                            "questions": [ {{ "question": "", "answers": [ {{ "text": "", "type": "A" }}, {{ "text": "", "type": "B" }}, {{ "text": "", "type": "C" }}, {{ "text": "", "type": "A" }} ] }} ]
+                        }}
+                        """
+                        res = client.chat.completions.create(
+                            model="gpt-4o-mini", 
+                            messages=[{"role":"system","content":"Output JSON only"}, {"role":"user","content":prompt}], 
+                            response_format={"type":"json_object"}
+                        )
+                        data = json.loads(res.choices[0].message.content)
+                        
+                        st.session_state['page_title'] = data.get('page_title','')
+                        st.session_state['main_heading'] = data.get('main_heading','')
+                        st.session_state['intro_text'] = data.get('intro_text','')
+                        st.session_state['image_keyword'] = data.get('image_keyword', 'random')
+                        
+                        if 'results' in data:
+                            for t in ['A','B','C']:
+                                if t in data['results']:
+                                    r = data['results'][t]
+                                    st.session_state[f'res_title_{t}'] = r.get('title','')
+                                    st.session_state[f'res_desc_{t}'] = r.get('desc','')
+                                    st.session_state[f'res_btn_{t}'] = r.get('btn','')
+                                    st.session_state[f'res_link_{t}'] = r.get('link','')
+                        
+                        if 'questions' in data:
+                            for i,q in enumerate(data['questions']):
+                                if i>=5: break
+                                st.session_state[f'q_text_{i+1}'] = q.get('question','')
+                                for j,a in enumerate(q.get('answers',[])):
+                                    if j>=4: break
+                                    st.session_state[f'q{i+1}_a{j+1}_text'] = a.get('text','')
+                                    st.session_state[f'q{i+1}_a{j+1}_type'] = a.get('type','A')
+                                    
+                        msg.success("完了！")
+                        time.sleep(0.5)
+                        st.rerun()
+                    except Exception as e:
+                        st.error(e)
 
         # フォーム変数初期化
         init_state('page_title', '')
@@ -296,7 +310,7 @@ else:
                     
                     with st.expander("LINE登録誘導を追加する"):
                         line_u = st.text_input("LINE公式アカウントURL", key=f'res_line_url_{t}')
-                        line_t = st.text_area("誘導文", key=f'res_line_text_{t}')
+                        line_t = st.text_area("誘導文 (例: 登録で特典プレゼント)", key=f'res_line_text_{t}')
                         line_i = st.text_input("画像URL (任意)", key=f'res_line_img_{t}')
                         
                     res_obj[t] = {
@@ -323,17 +337,21 @@ else:
                         ans_list.append({'text':at, 'type':aty})
                     if qt: q_obj.append({'question':qt, 'answers':ans_list})
 
+            # ★価格設定と公開ボタン（縦並び）
             st.markdown("---")
-            st.write("#### 💰 販売価格の設定")
+            st.write("#### 💰 購入価格の設定") # 文言変更
             price = st.number_input("価格 (円)", 980, 98000, 980, 100)
             
-            st.info("URL送付用メールアドレス (必須)")
-            email = st.text_input("Email", placeholder="mail@example.com", label_visibility="collapsed")
-            
-            # ★ボタンを縦並びに変更★
             st.markdown("---")
             st.subheader("📤 公開・保存")
             
+            # メール入力
+            st.info("URL送付用メールアドレス (必須)")
+            email = st.text_input("Email", placeholder="mail@example.com", label_visibility="collapsed")
+            
+            st.write("")
+            
+            # ボタンエリア
             st.markdown("**① URL発行 (無料)**")
             st.caption("※ポータルサイトに自動掲載されます。")
             sub_free = st.form_submit_button("🌐 無料でWeb公開する", type="primary", use_container_width=True)
