@@ -28,7 +28,6 @@ def init_state(key, val):
 init_state('ai_count', 0)
 init_state('page_mode', 'home')
 init_state('is_admin', False)
-# フォームの一時保存用
 init_state('draft_data', None)
 
 AI_LIMIT = 5
@@ -42,7 +41,6 @@ if query_params.get("admin") == "secret":
     st.session_state.is_admin = True
     st.toast("🔓 管理者モード")
 
-
 # ==========================================
 # メイン処理
 # ==========================================
@@ -53,7 +51,6 @@ if quiz_id:
     if not supabase:
         st.stop()
     try:
-        # PVカウントアップ
         if f"viewed_{quiz_id}" not in st.session_state:
             logic.increment_views(supabase, quiz_id)
             st.session_state[f"viewed_{quiz_id}"] = True
@@ -61,9 +58,7 @@ if quiz_id:
         res = supabase.table("quizzes").select("*").eq("id", quiz_id).execute()
         if not res.data:
             st.error("診断が見つかりません。")
-            if st.button("トップへ戻る"):
-                st.query_params.clear()
-                st.rerun()
+            st.markdown(styles.get_custom_button_html("/", "🏠 トップページに戻る", "blue"), unsafe_allow_html=True)
             st.stop()
         
         data = res.data[0]['content']
@@ -83,13 +78,10 @@ if quiz_id:
                     st.rerun()
         
         with c_back:
-            if st.button("🏠 ポータルトップへ戻る", use_container_width=True):
-                st.query_params.clear()
-                st.rerun()
+            st.markdown(styles.get_custom_button_html("/", "🏠 ポータルトップへ戻る", "blue", target="_self"), unsafe_allow_html=True)
 
     except Exception as e:
         st.error(e)
-
 
 # --- 🅱️ 決済完了画面 ---
 elif session_id:
@@ -107,13 +99,10 @@ elif session_id:
                 final_html = logic.generate_html_content(data)
                 st.download_button("📥 HTMLをダウンロード", final_html, "diagnosis.html", "text/html", type="primary")
                 
-                if st.button("トップに戻る"):
-                    st.query_params.clear()
-                    st.rerun()
+                st.markdown(styles.get_custom_button_html("/", "トップページに戻る", "blue", target="_self"), unsafe_allow_html=True)
                 st.stop()
     except Exception as e:
         st.error(f"決済エラー: {e}")
-
 
 # --- 🆑 ポータル & 作成画面 ---
 else:
@@ -138,7 +127,6 @@ else:
 
         st.markdown("### 📚 新着の診断")
         if supabase:
-            # 最新15件を表示
             res = supabase.table("quizzes").select("*").eq("is_public", True).order("created_at", desc=True).limit(15).execute()
             if res.data:
                 cols = st.columns(3)
@@ -166,9 +154,10 @@ else:
                                 ), 
                                 unsafe_allow_html=True
                             )
-                            
-                            st.link_button("▶ 今すぐ診断する", link_url, use_container_width=True)
-                            
+                            st.markdown(
+                                styles.get_custom_button_html(link_url, "▶ 今すぐ診断する", "green"),
+                                unsafe_allow_html=True
+                            )
                             if st.session_state.is_admin:
                                 st.markdown('<div class="delete-btn">', unsafe_allow_html=True)
                                 if st.button("🗑️ 削除", key=f"del_{q['id']}"):
@@ -177,7 +166,6 @@ else:
                                         time.sleep(1)
                                         st.rerun()
                                 st.markdown('</div>', unsafe_allow_html=True)
-                        
                         st.write("") 
             else:
                 st.info("まだ投稿がありません")
@@ -212,7 +200,6 @@ else:
 辛口かつ論理的なアドバイスで、背中を押してほしい。"""
 
             theme = st.text_area("テーマ・詳細設定", height=300, placeholder=theme_placeholder)
-            
             st.caption("※AIの文章作成には10秒〜30秒ほどかかります。")
             
             if st.button("AIで構成案を作成", type="primary"):
@@ -279,7 +266,7 @@ else:
         init_state('main_heading', '')
         init_state('intro_text', '')
         init_state('image_keyword', '')
-        init_state('color_main', '#2563eb') # カラー初期値
+        init_state('color_main', '#2563eb')
         
         # ====================================================
         # 1段階目: コンテンツ編集フォーム
@@ -290,23 +277,14 @@ else:
             with c1: page_title = st.text_input("タブ名", key='page_title')
             with c2: main_heading = st.text_input("タイトル", key='main_heading')
             intro_text = st.text_area("導入文", key='intro_text')
-            
-            # サムネイル設定（説明追加）
-            image_keyword = st.text_input(
-                "ポータル掲載用画像テーマ (英単語)", 
-                key='image_keyword', 
-                help="ポータルサイトの一覧に表示されるサムネイル画像を、この単語からAIが生成します。（例: business, cat, space）"
-            )
+            image_keyword = st.text_input("ポータル掲載用画像テーマ (英単語)", key='image_keyword', help="AI画像生成に使われます")
             
             st.markdown("---")
             st.subheader("2. デザイン設定")
-            st.info("診断画面のボタン色などを変更できます。")
-            color_main = st.color_picker("メインカラー", key="color_main")
+            color_main = st.color_picker("メインカラー", "#2563eb")
 
             st.markdown("---")
             st.subheader("3. 結果ページ設定")
-            st.caption("診断結果ごとに、異なるLINEへの誘導などを設定できます。")
-            
             res_obj = {}
             tabs = st.tabs(["Type A", "Type B", "Type C"])
             for i,t in enumerate(['A','B','C']):
@@ -325,13 +303,11 @@ else:
                     with c_btn1: rb = st.text_input("ボタン名", key=f'res_btn_{t}')
                     with c_btn2: rl = st.text_input("URL", key=f'res_link_{t}')
                     
-                    # LINE設定エリア
-                    with st.expander("🟩 LINE登録誘導を追加する (任意)"):
-                        st.caption("結果画面の下部に、LINE公式アカウントへの誘導枠を表示します。")
-                        line_u = st.text_input("LINE URL", key=f'res_line_url_{t}', placeholder="https://lin.ee/...")
-                        line_t = st.text_area("誘導文", key=f'res_line_text_{t}', placeholder="登録で特典プレゼント！")
-                        line_i = st.text_input("画像URL (任意)", key=f'res_line_img_{t}', placeholder="http://...")
-                        
+                    with st.expander("LINE登録誘導を追加する"):
+                        line_u = st.text_input("LINE公式アカウントURL", key=f'res_line_url_{t}')
+                        line_t = st.text_area("誘導文", key=f'res_line_text_{t}')
+                        line_i = st.text_input("画像URL (任意)", key=f'res_line_img_{t}')
+                    
                     res_obj[t] = {
                         'title':rt, 'desc':rd, 'btn':rb, 'link':rl,
                         'line_url':line_u, 'line_text':line_t, 'line_img':line_i
@@ -342,7 +318,6 @@ else:
             q_obj = []
             for q in range(1,6):
                 init_state(f'q_text_{q}','')
-                # Expanderを使ってすっきり収納
                 with st.expander(f"Q{q} の内容を編集", expanded=(q==1)):
                     qt = st.text_input(f"質問文 Q{q}", key=f'q_text_{q}')
                     st.markdown("##### 選択肢")
@@ -357,27 +332,24 @@ else:
                         ans_list.append({'text':at, 'type':aty})
                     if qt: q_obj.append({'question':qt, 'answers':ans_list})
             
-            # フォーム送信ボタン
             st.markdown("<br>", unsafe_allow_html=True)
             submitted = st.form_submit_button("次へ：公開設定に進む", type="primary", use_container_width=True)
 
         # ====================================================
-        # 2段階目: 公開・価格設定
+        # 2段階目: 公開・価格設定 (フォームの外)
         # ====================================================
         if submitted:
-            # データを一時保存
             st.session_state.draft_data = {
                 'page_title':page_title, 'main_heading':main_heading, 'intro_text':intro_text, 
                 'image_keyword':image_keyword, 'color_main':color_main,
                 'results':res_obj, 'questions':q_obj
             }
         
-        # ドラフトデータがある場合のみ表示
         if st.session_state.draft_data:
             st.markdown("---")
             st.subheader("5. 公開・販売設定")
+            st.info("URL発行（無料）はポータルサイトに自動掲載されます。\n診断クイズファイルのダウンロード（有料）はポータル掲載の有無を選択できます。")
             
-            # 価格設定
             st.write("#### 💰 購入価格の設定")
             price = st.number_input("価格 (円)", 980, 98000, 980, 100)
             
@@ -387,18 +359,13 @@ else:
             st.markdown("---")
             st.subheader("📤 公開方法を選択")
             
-            # ① URL発行
-            st.markdown("**① URL発行 (無料)**")
-            st.caption("※ポータルサイトに自動掲載されます。")
-            sub_free = st.button("🌐 無料でWeb公開する", type="primary", use_container_width=True)
+            # ボタンを縦に並べる (use_container_width=True)
+            sub_free = st.button("🌐 URL発行 (無料) - ポータルに自動掲載", type="primary", use_container_width=True)
             
-            st.write("")
+            st.write("") # スペース
             
-            # ② ダウンロード
-            st.markdown("**② ファイルダウンロード (有料)**")
-            st.caption("※HTMLファイルをダウンロードします。ポータル掲載は任意です。")
-            is_pub = st.checkbox("ポータルサイトにも掲載する", value=False)
-            sub_paid = st.button(f"💾 {price}円で購入してダウンロード", use_container_width=True)
+            is_pub = st.checkbox("ポータルサイトにも掲載する (有料版オプション)", value=False)
+            sub_paid = st.button(f"💾 {price}円で購入してダウンロード (有料)", use_container_width=True)
             
             if sub_free or sub_paid:
                 draft = st.session_state.draft_data
@@ -422,7 +389,7 @@ else:
                                 st.success("公開しました！メールを確認してください")
                                 st.balloons()
                                 time.sleep(2)
-                                st.session_state.draft_data = None # クリア
+                                st.session_state.draft_data = None
                                 st.session_state.page_mode='home'
                                 st.rerun()
                             else:
