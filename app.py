@@ -5,6 +5,7 @@ import os
 import time
 import stripe
 import streamlit.components.v1 as components
+import urllib.parse  # 日本語キーワードのエンコード用に追加
 
 import styles
 import logic
@@ -78,6 +79,7 @@ if quiz_id:
                     st.rerun()
         
         with c_back:
+            # ★修正: target="_blank" を指定して、確実に別タブで開くように修正
             st.markdown(styles.get_custom_button_html("/", "🏠 ポータルトップへ戻る", "blue", target="_self"), unsafe_allow_html=True)
 
     except Exception as e:
@@ -110,6 +112,7 @@ else:
     if st.session_state.page_mode == 'home':
         styles.apply_portal_style()
         
+        # レイアウト調整: 検索ボックスを狭くする（3:1）
         c1, c2 = st.columns([3, 1])
         with c1:
             st.markdown("### 💎 診断クイズメーカー")
@@ -125,17 +128,42 @@ else:
             st.rerun()
         st.markdown('</div><br>', unsafe_allow_html=True)
 
+        # --- 並べ替え機能の実装 ---
         st.markdown("### 📚 新着の診断")
         if supabase:
-            res = supabase.table("quizzes").select("*").eq("is_public", True).order("created_at", desc=True).limit(15).execute()
+            sort_col1, sort_col2 = st.columns([1, 4])
+            with sort_col1:
+                sort_order = st.selectbox(
+                    "並べ替え", 
+                    ["新着順", "閲覧数順", "いいね順"], 
+                    label_visibility="collapsed"
+                )
+            
+            # クエリの構築
+            query = supabase.table("quizzes").select("*").eq("is_public", True)
+            
+            if sort_order == "新着順":
+                query = query.order("created_at", desc=True)
+            elif sort_order == "閲覧数順":
+                query = query.order("views", desc=True)
+            elif sort_order == "いいね順":
+                query = query.order("likes", desc=True)
+                
+            res = query.limit(15).execute()
+
             if res.data:
                 cols = st.columns(3)
                 for i, q in enumerate(res.data):
                     with cols[i % 3]:
                         content = q.get('content', {})
                         keyword = content.get('image_keyword', 'abstract')
+                        
+                        # ★日本語対応: キーワードをURLエンコードする
+                        encoded_keyword = urllib.parse.quote(keyword)
+                        
                         seed = q['id'][-4:] 
-                        img_url = f"https://image.pollinations.ai/prompt/{keyword}%20{seed}?width=350&height=180&nologo=true"
+                        # prompt/の後ろをエンコード済みキーワードに変更
+                        img_url = f"https://image.pollinations.ai/prompt/{encoded_keyword}%20{seed}?width=350&height=180&nologo=true"
                         
                         base = "https://shindan-quiz-maker.streamlit.app"
                         link_url = f"{base}/?id={q['id']}"
@@ -155,10 +183,47 @@ else:
                                 unsafe_allow_html=True
                             )
                             
+                            # ★修正: リンクボタンに target="_blank" を追加
                             st.markdown(
                                 styles.get_custom_button_html(link_url, "▶ 今すぐ診断する", "green", target="_blank"),
                                 unsafe_allow_html=True
                             )
+                            
+                            # ★追加: コピーして作成ボタン
+                            if st.button("⚡ コピーして作る", key=f"copy_{q['id']}", use_container_width=True):
+                                # 既存データをセッションステートにロード
+                                st.session_state['page_title'] = content.get('page_title', '')
+                                st.session_state['main_heading'] = content.get('main_heading', '')
+                                st.session_state['intro_text'] = content.get('intro_text', '')
+                                st.session_state['image_keyword'] = content.get('image_keyword', '')
+                                st.session_state['color_main'] = content.get('color_main', '#2563eb')
+                                
+                                # 結果データのロード
+                                if 'results' in content:
+                                    for t in ['A', 'B', 'C']:
+                                        if t in content['results']:
+                                            r = content['results'][t]
+                                            st.session_state[f'res_title_{t}'] = r.get('title', '')
+                                            st.session_state[f'res_desc_{t}'] = r.get('desc', '')
+                                            st.session_state[f'res_btn_{t}'] = r.get('btn', '')
+                                            st.session_state[f'res_link_{t}'] = r.get('link', '')
+                                            st.session_state[f'res_line_url_{t}'] = r.get('line_url', '')
+                                            st.session_state[f'res_line_text_{t}'] = r.get('line_text', '')
+                                            st.session_state[f'res_line_img_{t}'] = r.get('line_img', '')
+
+                                # 質問データのロード
+                                if 'questions' in content:
+                                    for qi, q_data in enumerate(content['questions']):
+                                        if qi >= 5: break
+                                        st.session_state[f'q_text_{qi+1}'] = q_data.get('question', '')
+                                        for j, ans in enumerate(q_data.get('answers', [])):
+                                            if j >= 4: break
+                                            st.session_state[f'q{qi+1}_a{j+1}_text'] = ans.get('text', '')
+                                            st.session_state[f'q{qi+1}_a{j+1}_type'] = ans.get('type', 'A')
+
+                                st.session_state.page_mode = 'create'
+                                st.rerun()
+
                             
                             if st.session_state.is_admin:
                                 st.markdown('<div class="delete-btn">', unsafe_allow_html=True)
@@ -221,6 +286,10 @@ else:
                         2. 選択肢は「必ず4つ」作成すること。
                         3. 結果パターンは「必ず3つ（A, B, C）」作成すること。
                         4. JSONのみ出力
+                        
+                        【画像キーワードについて】
+                        image_keywordは、必ず「英単語1語」で出力してください。（例: cat, ocean, future, business）
+                        
                         出力JSON:
                         {{
                             "page_title": "", "main_heading": "", "intro_text": "", "image_keyword": "英単語1語",
@@ -264,7 +333,7 @@ else:
                     except Exception as e:
                         st.error(e)
 
-        # フォーム変数初期化
+        # フォーム変数初期化（既存値があればそれを使う）
         init_state('page_title', '')
         init_state('main_heading', '')
         init_state('intro_text', '')
@@ -285,7 +354,7 @@ else:
             image_keyword = st.text_input(
                 "ポータル掲載用画像テーマ (英単語)", 
                 key='image_keyword', 
-                help="ポータルサイトの一覧に表示されるサムネイル画像を、この単語からAIが生成します。（例: business, cat, space）"
+                help="ポータルサイトの一覧に表示されるサムネイル画像を、この単語からAIが生成します。（例: business, cat, space）※日本語も可能ですが、英単語の方が精度が高いです。"
             )
             
             st.markdown("---")
@@ -422,6 +491,3 @@ else:
                             
                     except Exception as e:
                         st.error(f"保存エラー: {e}")
-
-
-
