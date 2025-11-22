@@ -9,14 +9,21 @@ import streamlit.components.v1 as components
 import styles
 import logic
 
+# 日本語文字化け防止
 os.environ["PYTHONIOENCODING"] = "utf-8"
+
+# ページ設定
 st.set_page_config(page_title="Diagnosis Portal", page_icon="💎", layout="wide")
 
-if "stripe" in st.secrets: stripe.api_key = st.secrets["stripe"]["api_key"]
+# --- 初期設定 ---
+if "stripe" in st.secrets:
+    stripe.api_key = st.secrets["stripe"]["api_key"]
+
 supabase = logic.init_supabase()
 
 def init_state(key, val):
-    if key not in st.session_state: st.session_state[key] = val
+    if key not in st.session_state:
+        st.session_state[key] = val
 
 init_state('ai_count', 0)
 init_state('page_mode', 'home')
@@ -33,12 +40,16 @@ if query_params.get("admin") == "secret":
     st.toast("🔓 管理者モード")
 
 # ==========================================
-# 🅰️ プレイ画面 (Web公開)
+# メイン処理
 # ==========================================
+
+# --- 🅰️ プレイ画面 (Web公開) ---
 if quiz_id:
     styles.apply_portal_style()
-    if not supabase: st.stop()
+    if not supabase:
+        st.stop()
     try:
+        # PVカウントアップ
         if f"viewed_{quiz_id}" not in st.session_state:
             logic.increment_views(supabase, quiz_id)
             st.session_state[f"viewed_{quiz_id}"] = True
@@ -46,7 +57,9 @@ if quiz_id:
         res = supabase.table("quizzes").select("*").eq("id", quiz_id).execute()
         if not res.data:
             st.error("診断が見つかりません。")
-            if st.button("トップへ戻る"): st.query_params.clear(); st.rerun()
+            if st.button("トップへ戻る"):
+                st.query_params.clear()
+                st.rerun()
             st.stop()
         
         data = res.data[0]['content']
@@ -62,15 +75,18 @@ if quiz_id:
                 if st.button("🤍 この診断に「いいね」する", type="secondary", use_container_width=True):
                     logic.increment_likes(supabase, quiz_id)
                     st.session_state[liked_key] = True
-                    st.balloons(); st.rerun()
+                    st.balloons()
+                    st.rerun()
+        
         with c_back:
             if st.button("🏠 ポータルトップへ戻る", use_container_width=True):
-                st.query_params.clear(); st.rerun()
-    except Exception as e: st.error(e)
+                st.query_params.clear()
+                st.rerun()
 
-# ==========================================
-# 🅱️ 決済完了画面
-# ==========================================
+    except Exception as e:
+        st.error(e)
+
+# --- 🅱️ 決済完了画面 ---
 elif session_id:
     styles.apply_portal_style()
     try:
@@ -82,34 +98,41 @@ elif session_id:
                 data = res.data[0]['content']
                 st.balloons()
                 st.success("✅ お支払いが完了しました！")
+                
                 final_html = logic.generate_html_content(data)
                 st.download_button("📥 HTMLをダウンロード", final_html, "diagnosis.html", "text/html", type="primary")
-                if st.button("トップに戻る"): st.query_params.clear(); st.rerun()
+                
+                if st.button("トップに戻る"):
+                    st.query_params.clear()
+                    st.rerun()
                 st.stop()
-    except Exception as e: st.error(f"決済エラー: {e}")
+    except Exception as e:
+        st.error(f"決済エラー: {e}")
 
-# ==========================================
-# 🆑 ポータル & 作成画面
-# ==========================================
+# --- 🆑 ポータル & 作成画面 ---
 else:
+    # 1. ポータルトップ
     if st.session_state.page_mode == 'home':
         styles.apply_portal_style()
         
         c1, c2 = st.columns([1, 2])
-        with c1: st.markdown("### 💎 診断クイズメーカー")
-        with c2: st.text_input("search", label_visibility="collapsed", placeholder="🔍 キーワード検索...")
+        with c1:
+            st.markdown("### 💎 診断クイズメーカー")
+        with c2:
+            st.text_input("search", label_visibility="collapsed", placeholder="🔍 キーワード検索...")
         st.write("") 
 
         st.markdown(styles.HERO_HTML, unsafe_allow_html=True)
         
         st.markdown('<div class="big-create-btn">', unsafe_allow_html=True)
         if st.button("✨ 新しい診断を作成する", type="primary", use_container_width=True):
-            st.session_state.page_mode = 'create'; st.rerun()
+            st.session_state.page_mode = 'create'
+            st.rerun()
         st.markdown('</div><br>', unsafe_allow_html=True)
 
         st.markdown("### 📚 新着の診断")
         if supabase:
-            # ★ここで表示個数(limit)を変更できます。現在は15個。
+            # 最新15件を表示
             res = supabase.table("quizzes").select("*").eq("is_public", True).order("created_at", desc=True).limit(15).execute()
             if res.data:
                 cols = st.columns(3)
@@ -119,44 +142,77 @@ else:
                         keyword = content.get('image_keyword', 'abstract')
                         seed = q['id'][-4:] 
                         img_url = f"https://image.pollinations.ai/prompt/{keyword}%20{seed}?width=350&height=180&nologo=true"
+                        
                         base = "https://shindan-quiz-maker.streamlit.app"
                         link_url = f"{base}/?id={q['id']}"
+                        
                         views = q.get('views', 0)
                         likes = q.get('likes', 0)
                         
                         with st.container(border=True):
-                            st.markdown(styles.get_card_content_html(q.get('title','無題'), content.get('intro_text',''), img_url, views, likes), unsafe_allow_html=True)
+                            st.markdown(
+                                styles.get_card_content_html(
+                                    q.get('title','無題'), 
+                                    content.get('intro_text',''), 
+                                    img_url, 
+                                    views, 
+                                    likes
+                                ), 
+                                unsafe_allow_html=True
+                            )
+                            
                             st.link_button("▶ 今すぐ診断する", link_url, use_container_width=True)
+                            
                             if st.session_state.is_admin:
                                 st.markdown('<div class="delete-btn">', unsafe_allow_html=True)
                                 if st.button("🗑️ 削除", key=f"del_{q['id']}"):
                                     if logic.delete_quiz(supabase, q['id']):
-                                        st.toast("削除しました", icon="🗑️"); time.sleep(1); st.rerun()
+                                        st.toast("削除しました")
+                                        time.sleep(1)
+                                        st.rerun()
                                 st.markdown('</div>', unsafe_allow_html=True)
+                        
                         st.write("") 
             else:
                 st.info("まだ投稿がありません")
 
+    # 2. 作成エディタ
     elif st.session_state.page_mode == 'create':
         styles.apply_editor_style()
+        
         if st.button("← ポータルへ戻る"):
-            st.session_state.page_mode = 'home'; st.rerun()
+            st.session_state.page_mode = 'home'
+            st.rerun()
+            
         st.title("📝 診断作成エディタ")
         
+        # AIサイドバー
         with st.sidebar:
-            if "OPENAI_API_KEY" in st.secrets: api_key = st.secrets["OPENAI_API_KEY"]
-            else: st.error("APIキー設定なし"); st.stop()
+            if "OPENAI_API_KEY" in st.secrets:
+                api_key = st.secrets["OPENAI_API_KEY"]
+            else:
+                st.error("APIキー設定なし")
+                st.stop()
+            
             st.header("🧠 AIアシスタント")
             theme = st.text_area("テーマ", "例：30代女性向けの辛口婚活診断")
+            
+            # ★注意書きを追加
             st.caption("※AIの文章作成には10秒〜30秒ほどかかります。")
             
             if st.button("AIで構成案を作成", type="primary"):
                 try:
-                    msg = st.empty(); msg.info("AIが執筆中... (最大30秒かかります)")
+                    msg = st.empty()
+                    msg.info("AIが執筆中... (最大30秒かかります)")
                     client = openai.OpenAI(api_key=api_key)
+                    
                     prompt = f"""
                     あなたはプロの診断作家です。テーマ: {theme}
-                    【絶対厳守】1.質問5問 2.選択肢4つ 3.結果3つ 4.JSONのみ
+                    【絶対厳守】
+                    1. 質問は「必ず5問」
+                    2. 選択肢は「必ず4つ」
+                    3. 結果は「必ず3つ（A, B, C）」
+                    4. JSONのみ出力
                     出力JSON:
                     {{
                         "page_title": "", "main_heading": "", "intro_text": "", "image_keyword": "英単語1語",
@@ -164,12 +220,18 @@ else:
                         "questions": [ {{ "question": "", "answers": [ {{ "text": "", "type": "A" }}, {{ "text": "", "type": "B" }}, {{ "text": "", "type": "C" }}, {{ "text": "", "type": "A" }} ] }} ]
                     }}
                     """
-                    res = client.chat.completions.create(model="gpt-4o-mini", messages=[{"role":"system","content":"Output JSON only"}, {"role":"user","content":prompt}], response_format={"type":"json_object"})
+                    res = client.chat.completions.create(
+                        model="gpt-4o-mini", 
+                        messages=[{"role":"system","content":"Output JSON only"}, {"role":"user","content":prompt}], 
+                        response_format={"type":"json_object"}
+                    )
                     data = json.loads(res.choices[0].message.content)
+                    
                     st.session_state['page_title'] = data.get('page_title','')
                     st.session_state['main_heading'] = data.get('main_heading','')
                     st.session_state['intro_text'] = data.get('intro_text','')
                     st.session_state['image_keyword'] = data.get('image_keyword', 'random')
+                    
                     if 'results' in data:
                         for t in ['A','B','C']:
                             if t in data['results']:
@@ -178,6 +240,7 @@ else:
                                 st.session_state[f'res_desc_{t}'] = r.get('desc','')
                                 st.session_state[f'res_btn_{t}'] = r.get('btn','')
                                 st.session_state[f'res_link_{t}'] = r.get('link','')
+                    
                     if 'questions' in data:
                         for i,q in enumerate(data['questions']):
                             if i>=5: break
@@ -186,28 +249,88 @@ else:
                                 if j>=4: break
                                 st.session_state[f'q{i+1}_a{j+1}_text'] = a.get('text','')
                                 st.session_state[f'q{i+1}_a{j+1}_type'] = a.get('type','A')
-                    msg.success("完了！"); time.sleep(0.5); st.rerun()
-                except Exception as e: st.error(e)
+                                
+                    msg.success("完了！")
+                    time.sleep(0.5)
+                    st.rerun()
+                except Exception as e:
+                    st.error(e)
 
-        init_state('page_title',''); init_state('main_heading',''); init_state('intro_text',''); init_state('image_keyword','')
+        # フォーム変数初期化
+        init_state('page_title', '')
+        init_state('main_heading', '')
+        init_state('intro_text', '')
+        init_state('image_keyword', '')
+        
         with st.form("editor"):
-            st.subheader("基本情報"); page_title = st.text_input("タブ名", key='page_title'); main_heading = st.text_input("タイトル", key='main_heading'); intro_text = st.text_area("導入文", key='intro_text'); image_keyword = st.text_input("サムネイル英単語", key='image_keyword')
-            st.markdown("---"); st.subheader("結果設定"); res_obj = {}; tabs = st.tabs(["Type A", "Type B", "Type C"])
+            st.subheader("1. 基本設定")
+            c1, c2 = st.columns(2)
+            with c1: page_title = st.text_input("タブ名", key='page_title')
+            with c2: main_heading = st.text_input("タイトル", key='main_heading')
+            intro_text = st.text_area("導入文", key='intro_text')
+            image_keyword = st.text_input("ポータル掲載用画像テーマ (英単語)", key='image_keyword')
+            
+            st.markdown("---")
+            st.subheader("2. デザイン設定")
+            color_main = st.color_picker("メインカラー", "#2563eb")
+
+            st.markdown("---")
+            st.subheader("3. 結果ページ設定")
+            res_obj = {}
+            tabs = st.tabs(["Type A", "Type B", "Type C"])
             for i,t in enumerate(['A','B','C']):
-                init_state(f'res_title_{t}',''); init_state(f'res_desc_{t}',''); init_state(f'res_btn_{t}',''); init_state(f'res_link_{t}','')
-                with tabs[i]: rt = st.text_input("名前", key=f'res_title_{t}'); rd = st.text_area("説明", key=f'res_desc_{t}', height=200); c1,c2=st.columns(2); rb = c1.text_input("ボタン", key=f'res_btn_{t}'); rl = c2.text_input("URL", key=f'res_link_{t}'); res_obj[t] = {'title':rt, 'desc':rd, 'btn':rb, 'link':rl}
-            st.markdown("---"); st.subheader("質問設定"); q_obj = []
+                init_state(f'res_title_{t}','')
+                init_state(f'res_desc_{t}','')
+                init_state(f'res_btn_{t}','')
+                init_state(f'res_link_{t}','')
+                init_state(f'res_line_url_{t}','')
+                init_state(f'res_line_text_{t}','')
+                init_state(f'res_line_img_{t}','')
+                
+                with tabs[i]:
+                    rt = st.text_input("結果名", key=f'res_title_{t}')
+                    rd = st.text_area("説明文", key=f'res_desc_{t}', height=200)
+                    c_btn1, c_btn2 = st.columns(2)
+                    with c_btn1: rb = st.text_input("ボタン名", key=f'res_btn_{t}')
+                    with c_btn2: rl = st.text_input("URL", key=f'res_link_{t}')
+                    
+                    with st.expander("LINE登録誘導を追加する"):
+                        line_u = st.text_input("LINE公式アカウントURL", key=f'res_line_url_{t}')
+                        line_t = st.text_area("誘導文", key=f'res_line_text_{t}')
+                        line_i = st.text_input("画像URL (任意)", key=f'res_line_img_{t}')
+                        
+                    res_obj[t] = {
+                        'title':rt, 'desc':rd, 'btn':rb, 'link':rl,
+                        'line_url':line_u, 'line_text':line_t, 'line_img':line_i
+                    }
+
+            st.markdown("---")
+            st.subheader("4. 質問設定")
+            q_obj = []
             for q in range(1,6):
                 init_state(f'q_text_{q}','')
-                with st.expander(f"Q{q}"): qt = st.text_input("文", key=f'q_text_{q}'); ans_list = []
-                for a in range(1,5): init_state(f'q{q}_a{a}_text',''); init_state(f'q{q}_a{a}_type','A'); c1,c2=st.columns([3,1]); at=c1.text_input(f"選択{a}", key=f'q{q}_a{a}_text'); aty=c2.selectbox("加点", ["A","B","C"], key=f'q{q}_a{a}_type'); ans_list.append({'text':at, 'type':aty})
-                if qt: q_obj.append({'question':qt, 'answers':ans_list})
-            st.markdown("---"); email = st.text_input("Email (必須)", placeholder="mail@example.com")
-            
+                with st.expander(f"Q{q} の内容を編集", expanded=(q==1)):
+                    qt = st.text_input("質問文", key=f'q_text_{q}')
+                    st.caption("選択肢設定")
+                    ans_list = []
+                    for a in range(1,5):
+                        init_state(f'q{q}_a{a}_text',''); init_state(f'q{q}_a{a}_type','A')
+                        c_opt1, c_opt2 = st.columns([3, 1])
+                        with c_opt1:
+                            at = st.text_input(f"選択肢{a}", key=f'q{q}_a{a}_text')
+                        with c_opt2:
+                            aty = st.selectbox("加点先", ["A","B","C"], key=f'q{q}_a{a}_type')
+                        ans_list.append({'text':at, 'type':aty})
+                    if qt: q_obj.append({'question':qt, 'answers':ans_list})
+
+            st.markdown("---")
             st.write("#### 💰 販売価格の設定")
             price = st.number_input("価格 (円)", 980, 98000, 980, 100)
             
-            # ★ここを修正：縦並び＆説明追加
+            st.info("URL送付用メールアドレス (必須)")
+            email = st.text_input("Email", placeholder="mail@example.com", label_visibility="collapsed")
+            
+            # ★ボタンを縦並びに変更★
             st.markdown("---")
             st.subheader("📤 公開・保存")
             
@@ -218,23 +341,46 @@ else:
             st.write("")
             
             st.markdown("**② ファイルダウンロード (有料)**")
+            st.caption("※HTMLファイルをダウンロードします。ポータル掲載は任意です。")
             is_pub = st.checkbox("ポータルサイトにも掲載する", value=False)
             sub_paid = st.form_submit_button(f"💾 {price}円で購入してダウンロード", use_container_width=True)
             
             if sub_free or sub_paid:
-                if not email: st.error("Email必須")
-                elif not q_obj: st.error("質問なし")
+                if not email:
+                    st.error("Email必須")
+                elif not q_obj:
+                    st.error("質問なし")
                 else:
-                    s_data = {'page_title':page_title, 'main_heading':main_heading, 'intro_text':intro_text, 'image_keyword':image_keyword, 'results':res_obj, 'questions':q_obj}
+                    s_data = {
+                        'page_title':page_title, 'main_heading':main_heading, 'intro_text':intro_text, 
+                        'image_keyword':image_keyword, 'color_main':color_main,
+                        'results':res_obj, 'questions':q_obj
+                    }
                     try:
                         is_p = True if sub_free else is_pub
                         res = supabase.table("quizzes").insert({"email":email, "title":main_heading, "content":s_data, "is_public":is_p, "price":price}).execute()
                         new_id = res.data[0]['id']
                         base = "https://shindan-quiz-maker.streamlit.app"
+                        
                         if sub_free:
-                            if logic.send_email(email, f"{base}/?id={new_id}", main_heading): st.success("メール送信完了"); st.balloons(); time.sleep(2); st.session_state.page_mode='home'; st.rerun()
-                            else: st.error("メール送信失敗")
+                            if logic.send_email(email, f"{base}/?id={new_id}", main_heading):
+                                st.success("公開しました！メールを確認してください")
+                                st.balloons()
+                                time.sleep(2)
+                                st.session_state.page_mode='home'
+                                st.rerun()
+                            else:
+                                st.error("メール送信失敗")
+                        
                         if sub_paid:
-                            sess = stripe.checkout.Session.create(payment_method_types=['card'], line_items=[{'price_data':{'currency':'jpy','product_data':{'name':'診断データ'},'unit_amount':price},'quantity':1}], mode='payment', success_url=f"{base}/?session_id={{CHECKOUT_SESSION_ID}}", cancel_url=f"{base}/", metadata={'quiz_id':new_id})
+                            sess = stripe.checkout.Session.create(
+                                payment_method_types=['card'],
+                                line_items=[{'price_data':{'currency':'jpy','product_data':{'name':f'{main_heading}'},'unit_amount':price},'quantity':1}],
+                                mode='payment',
+                                success_url=f"{base}/?session_id={{CHECKOUT_SESSION_ID}}",
+                                cancel_url=f"{base}/",
+                                metadata={'quiz_id':new_id}
+                            )
                             st.link_button("決済へ進む", sess.url, type="primary")
-                    except Exception as e: st.error(e)
+                    except Exception as e:
+                        st.error(e)
