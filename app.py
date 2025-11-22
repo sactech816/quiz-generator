@@ -156,7 +156,7 @@ else:
                             )
                             
                             st.markdown(
-                                styles.get_custom_button_html(link_url, "▶ 今すぐ診断する", "green"),
+                                styles.get_custom_button_html(link_url, "▶ 今すぐ診断する", "green", target="_blank"),
                                 unsafe_allow_html=True
                             )
                             
@@ -422,3 +422,4 @@ else:
                             
                     except Exception as e:
                         st.error(f"保存エラー: {e}")
+
