@@ -10,93 +10,123 @@ def apply_portal_style():
         /* 全体設定 */
         .stApp { background-color: #ffffff !important; color: #333333 !important; }
         .block-container { max-width: 1100px; padding-top: 1rem; padding-bottom: 5rem; }
+        
+        /* UI隠し */
         #MainMenu, footer, header {visibility: hidden;}
         .stDeployButton {display:none;}
+        [data-testid="stElementToolbar"] {display: none;}
         
-        /* --- リンクカードのスタイル --- */
-        a.quiz-card-link {
-            text-decoration: none !important;
-            color: inherit !important;
-            display: block !important;
-        }
-        a.quiz-card-link:hover {
-            text-decoration: none !important;
-        }
-
-        /* カード本体 */
-        .quiz-card {
-            background: white;
-            border: 1px solid #e2e8f0;
+        /* --- コンテナ（カード枠）の調整 --- */
+        [data-testid="stVerticalBlockBorderWrapper"] {
             border-radius: 12px;
-            overflow: hidden;
-            height: 360px;
-            display: flex;
-            flex-direction: column;
+            border: 1px solid #e2e8f0;
+            background-color: white;
             box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-            transition: transform 0.2s, box-shadow 0.2s;
-            margin-bottom: 10px;
-            cursor: pointer;
-            position: relative;
+            transition: transform 0.2s;
+            padding: 0 !important;
+            overflow: hidden;
         }
-        .quiz-card:hover {
+        [data-testid="stVerticalBlockBorderWrapper"]:hover {
+            border-color: #3b82f6;
             transform: translateY(-3px);
             box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
-            border-color: #cbd5e1;
         }
         
-        /* 画像エリア */
-        .quiz-thumb-box {
-            width: 100%;
+        /* --- カード内部のビジュアル (HTML) --- */
+        .card-visual-box {
+            display: flex;
+            flex-direction: column;
+            height: 300px; /* 画像+テキストエリアの高さ固定 */
+        }
+        
+        .card-img-box {
+            width: calc(100% + 2rem); /* Streamlitのpadding相殺 */
+            margin: -1rem -1rem 0 -1rem; 
             height: 160px;
             background-color: #f1f5f9;
             overflow: hidden;
             position: relative;
         }
-        .quiz-thumb {
+        
+        .card-img {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            transition: transform 0.5s ease;
-        }
-        .quiz-card:hover .quiz-thumb { transform: scale(1.05); }
-        
-        /* コンテンツエリア */
-        .quiz-content { padding: 16px; flex-grow: 1; display:flex; flex-direction:column; }
-        .quiz-title { 
-            font-weight: bold; font-size: 1.1rem; margin-bottom: 8px; color: #1e293b; 
-            line-height: 1.4; height: 3em; overflow: hidden;
-            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-        }
-        .quiz-card:hover .quiz-title { color: #2563eb; }
-        
-        .quiz-desc { 
-            font-size: 0.85rem; color: #64748b; margin-bottom: 10px; line-height: 1.5;
-            height: 4.5em; overflow: hidden;
-            display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
         }
         
-        /* バッジ */
-        .badge-new { 
-            position: absolute; top: 10px; left: 10px; 
-            background: rgba(255,255,255,0.9); color: #1e40af; 
+        .card-content {
+            padding: 10px 5px;
+            flex-grow: 1;
+        }
+        
+        .card-title {
+            font-weight: 700;
+            font-size: 1.1rem;
+            margin-bottom: 5px;
+            color: #1e293b;
+            line-height: 1.4;
+            height: 3em;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+        
+        .card-desc {
+            font-size: 0.85rem;
+            color: #64748b;
+            line-height: 1.5;
+            height: 4.5em; /* 3行分 */
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+        }
+        
+        .badge-new {
+            position: absolute; top: 10px; left: 10px;
+            background: rgba(255,255,255,0.9); color: #1e40af;
             font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; z-index: 2;
         }
+        
         .badge-stats {
             position: absolute; bottom: 5px; right: 5px;
             background: rgba(0,0,0,0.6); color: white;
             font-size: 0.7rem; padding: 2px 8px; border-radius: 12px; font-weight: bold; z-index: 2;
         }
+
+        /* --- 純正ボタンのデザイン --- */
+        .stButton button {
+            width: 100%; border-radius: 8px; font-weight: bold; border: none;
+        }
         
-        /* ボタン */
+        /* 黒い「今すぐ診断」ボタン */
+        a[data-testid="stLinkButton"] {
+            background-color: #1e293b !important;
+            color: #ffffff !important;
+            text-align: center !important;
+            border-radius: 8px !important;
+            font-weight: bold !important;
+            margin-top: 5px !important;
+        }
+        a[data-testid="stLinkButton"]:hover {
+            background-color: #334155 !important;
+            text-decoration: none !important;
+        }
+        
+        /* 作成ボタン (青) */
         .stButton button[kind="primary"] {
             background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
-            color: white; border: none;
-        }
-        .delete-btn button {
-            background-color: #fee2e2 !important; color: #991b1b !important; border: 1px solid #fecaca !important;
-            padding: 0.3rem 0.5rem !important; font-size: 0.8rem !important; margin-top: 5px; width: auto !important;
+            color: white;
         }
         
+        /* 削除ボタン (赤) */
+        .delete-btn button {
+            background-color: #fee2e2 !important; color: #991b1b !important;
+            border: 1px solid #fecaca !important; font-size: 0.8rem !important;
+            padding: 0.2rem !important; margin-top: 5px;
+        }
+
         /* ヒーローエリア */
         .hero-container {
             background: white; border-radius: 16px; padding: 3rem; margin-bottom: 2rem;
@@ -124,20 +154,18 @@ HERO_HTML = """
 </div>
 """
 
-# ★ここを修正: リンク、閲覧数、いいね数を受け取る関数に統一
-def get_clickable_card_html(link, title, desc, img_url, views=0, likes=0):
+# ★ここを変更: リンク機能を持たない純粋な表示用HTML
+def get_card_visual_html(title, desc, img_url, views=0, likes=0):
     return f"""
-    <a href="{link}" target="_top" class="quiz-card-link">
-        <div class="quiz-card">
-            <div class="quiz-thumb-box">
-                <span class="badge-new">NEW</span>
-                <span class="badge-stats">👁️ {views} &nbsp; ❤️ {likes}</span>
-                <img src="{img_url}" class="quiz-thumb" loading="lazy">
-            </div>
-            <div class="quiz-content">
-                <div class="quiz-title">{title}</div>
-                <div class="quiz-desc">{desc}</div>
-            </div>
+    <div class="card-visual-box">
+        <div class="card-img-box">
+            <span class="badge-new">NEW</span>
+            <span class="badge-stats">👁️ {views} &nbsp; ❤️ {likes}</span>
+            <img src="{img_url}" class="card-img" loading="lazy">
         </div>
-    </a>
+        <div class="card-content">
+            <div class="card-title">{title}</div>
+            <div class="card-desc">{desc}</div>
+        </div>
+    </div>
     """
