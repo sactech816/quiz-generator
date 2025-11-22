@@ -12,7 +12,7 @@ import logic
 # 日本語文字化け防止
 os.environ["PYTHONIOENCODING"] = "utf-8"
 
-# ページ設定 ★ここを変更しました
+# ページ設定 (タイトル修正)
 st.set_page_config(page_title="診断クイズメーカー", page_icon="💎", layout="wide")
 
 # --- 初期設定 ---
@@ -29,6 +29,9 @@ init_state('ai_count', 0)
 init_state('page_mode', 'home')
 init_state('is_admin', False)
 AI_LIMIT = 5
+
+# フォームの一時保存用
+init_state('draft_data', None)
 
 query_params = st.query_params
 quiz_id = query_params.get("id", None)
@@ -49,7 +52,6 @@ if quiz_id:
     if not supabase:
         st.stop()
     try:
-        # PVカウントアップ
         if f"viewed_{quiz_id}" not in st.session_state:
             logic.increment_views(supabase, quiz_id)
             st.session_state[f"viewed_{quiz_id}"] = True
@@ -111,7 +113,6 @@ elif session_id:
 
 # --- 🆑 ポータル & 作成画面 ---
 else:
-    # 1. ポータルトップ
     if st.session_state.page_mode == 'home':
         styles.apply_portal_style()
         
@@ -170,12 +171,10 @@ else:
                                         time.sleep(1)
                                         st.rerun()
                                 st.markdown('</div>', unsafe_allow_html=True)
-                        
                         st.write("") 
             else:
                 st.info("まだ投稿がありません")
 
-    # 2. 作成エディタ
     elif st.session_state.page_mode == 'create':
         styles.apply_editor_style()
         
@@ -195,6 +194,7 @@ else:
             
             st.header("🧠 AIアシスタント")
             
+            # ★ヒントを追加
             theme_placeholder = """【良い診断を作るためのヒント】
 1. ターゲット：誰に向けた診断か？ (例: 30代の婚活女性、フリーランス、猫好き)
 2. テーマ：何を診断するのか？ (例: 隠れた才能、相性の良いアロマ、運命の相手)
@@ -204,8 +204,8 @@ else:
 30代の起業を目指す人向けに、向いているビジネスモデルを診断して。
 辛口かつ論理的なアドバイスで、背中を押してほしい。"""
 
+            # ★縦幅を拡張 (height=300)
             theme = st.text_area("テーマ・詳細設定", height=300, placeholder=theme_placeholder)
-            
             st.caption("※AIの文章作成には10秒〜30秒ほどかかります。")
             
             if st.button("AIで構成案を作成", type="primary"):
@@ -260,7 +260,7 @@ else:
                                     if j>=4: break
                                     st.session_state[f'q{i+1}_a{j+1}_text'] = a.get('text','')
                                     st.session_state[f'q{i+1}_a{j+1}_type'] = a.get('type','A')
-                                    
+                        
                         msg.success("完了！")
                         time.sleep(0.5)
                         st.rerun()
@@ -273,6 +273,9 @@ else:
         init_state('intro_text', '')
         init_state('image_keyword', '')
         
+        # ====================================================
+        # 1段階目: コンテンツ編集フォーム
+        # ====================================================
         with st.form("editor"):
             st.subheader("1. 基本設定")
             c1, c2 = st.columns(2)
@@ -305,11 +308,11 @@ else:
                     with c_btn1: rb = st.text_input("ボタン名", key=f'res_btn_{t}')
                     with c_btn2: rl = st.text_input("URL", key=f'res_link_{t}')
                     
-                    with st.expander("LINE登録誘導を追加する"):
-                        line_u = st.text_input("LINE公式アカウントURL", key=f'res_line_url_{t}')
-                        line_t = st.text_area("誘導文 (例: 登録で特典プレゼント)", key=f'res_line_text_{t}')
-                        line_i = st.text_input("画像URL (任意)", key=f'res_line_img_{t}')
-                        
+                    with st.expander("LINE登録誘導を追加"):
+                        line_u = st.text_input("LINE URL", key=f'res_line_url_{t}')
+                        line_t = st.text_area("誘導文", key=f'res_line_text_{t}')
+                        line_i = st.text_input("画像URL", key=f'res_line_img_{t}')
+                    
                     res_obj[t] = {
                         'title':rt, 'desc':rd, 'btn':rb, 'link':rl,
                         'line_url':line_u, 'line_text':line_t, 'line_img':line_i
@@ -333,8 +336,28 @@ else:
                             aty = st.selectbox("加点先", ["A","B","C"], key=f'q{q}_a{a}_type')
                         ans_list.append({'text':at, 'type':aty})
                     if qt: q_obj.append({'question':qt, 'answers':ans_list})
+            
+            # フォーム送信ボタン
+            st.markdown("<br>", unsafe_allow_html=True)
+            submitted = st.form_submit_button("次へ：公開設定に進む", type="primary", use_container_width=True)
 
+        # ====================================================
+        # 2段階目: 公開・価格設定 (フォームの外)
+        # ====================================================
+        if submitted:
+            # データを一時保存
+            st.session_state.draft_data = {
+                'page_title':page_title, 'main_heading':main_heading, 'intro_text':intro_text, 
+                'image_keyword':image_keyword, 'color_main':color_main,
+                'results':res_obj, 'questions':q_obj
+            }
+        
+        # ドラフトデータがある場合のみ表示
+        if st.session_state.draft_data:
             st.markdown("---")
+            st.subheader("5. 公開・販売設定")
+            
+            # 価格設定（変更すると即ボタンに反映される）
             st.write("#### 💰 購入価格の設定")
             price = st.number_input("価格 (円)", 980, 98000, 980, 100)
             
@@ -342,41 +365,45 @@ else:
             email = st.text_input("Email", placeholder="mail@example.com", label_visibility="collapsed")
             
             st.markdown("---")
-            st.subheader("📤 公開・保存")
             
+            # ① URL発行
             st.markdown("**① URL発行 (無料)**")
             st.caption("※ポータルサイトに自動掲載されます。")
-            sub_free = st.form_submit_button("🌐 無料でWeb公開する", type="primary", use_container_width=True)
+            sub_free = st.button("🌐 無料でWeb公開する", type="primary", use_container_width=True)
             
             st.write("")
             
+            # ② ダウンロード
             st.markdown("**② ファイルダウンロード (有料)**")
             st.caption("※HTMLファイルをダウンロードします。ポータル掲載は任意です。")
             is_pub = st.checkbox("ポータルサイトにも掲載する", value=False)
-            sub_paid = st.form_submit_button(f"💾 {price}円で購入してダウンロード", use_container_width=True)
+            # 価格を反映したボタン
+            sub_paid = st.button(f"💾 {price}円で購入してダウンロード", use_container_width=True)
             
             if sub_free or sub_paid:
+                draft = st.session_state.draft_data
+                # 簡易バリデーション
                 if not email:
-                    st.error("Email必須")
-                elif not q_obj:
-                    st.error("質問なし")
+                    st.error("Emailを入力してください")
+                elif not draft['questions']:
+                    st.error("質問データがありません")
                 else:
-                    s_data = {
-                        'page_title':page_title, 'main_heading':main_heading, 'intro_text':intro_text, 
-                        'image_keyword':image_keyword, 'color_main':color_main,
-                        'results':res_obj, 'questions':q_obj
-                    }
                     try:
                         is_p = True if sub_free else is_pub
-                        res = supabase.table("quizzes").insert({"email":email, "title":main_heading, "content":s_data, "is_public":is_p, "price":price}).execute()
+                        res = supabase.table("quizzes").insert({
+                            "email":email, "title":draft['main_heading'], "content":draft, 
+                            "is_public":is_p, "price":price
+                        }).execute()
+                        
                         new_id = res.data[0]['id']
                         base = "https://shindan-quiz-maker.streamlit.app"
                         
                         if sub_free:
-                            if logic.send_email(email, f"{base}/?id={new_id}", main_heading):
+                            if logic.send_email(email, f"{base}/?id={new_id}", draft['main_heading']):
                                 st.success("公開しました！メールを確認してください")
                                 st.balloons()
                                 time.sleep(2)
+                                st.session_state.draft_data = None # クリア
                                 st.session_state.page_mode='home'
                                 st.rerun()
                             else:
@@ -385,12 +412,13 @@ else:
                         if sub_paid:
                             sess = stripe.checkout.Session.create(
                                 payment_method_types=['card'],
-                                line_items=[{'price_data':{'currency':'jpy','product_data':{'name':f'{main_heading}'},'unit_amount':price},'quantity':1}],
+                                line_items=[{'price_data':{'currency':'jpy','product_data':{'name':f"{draft['main_heading']}"},'unit_amount':price},'quantity':1}],
                                 mode='payment',
                                 success_url=f"{base}/?session_id={{CHECKOUT_SESSION_ID}}",
                                 cancel_url=f"{base}/",
                                 metadata={'quiz_id':new_id}
                             )
                             st.link_button("決済へ進む", sess.url, type="primary")
+                            
                     except Exception as e:
-                        st.error(e)
+                        st.error(f"保存エラー: {e}")
