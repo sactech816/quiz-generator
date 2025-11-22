@@ -13,7 +13,7 @@ import logic
 os.environ["PYTHONIOENCODING"] = "utf-8"
 
 # ページ設定
-st.set_page_config(page_title="Diagnosis Portal", page_icon="💎", layout="wide")
+st.set_page_config(page_title="診断クイズメーカー", page_icon="💎", layout="wide")
 
 # --- 初期設定 ---
 if "stripe" in st.secrets:
@@ -49,7 +49,7 @@ if quiz_id:
     if not supabase:
         st.stop()
     try:
-        # PVカウントアップ (初回ロード時のみ)
+        # PVカウントアップ
         if f"viewed_{quiz_id}" not in st.session_state:
             logic.increment_views(supabase, quiz_id)
             st.session_state[f"viewed_{quiz_id}"] = True
@@ -128,12 +128,11 @@ else:
         st.markdown(styles.HERO_HTML, unsafe_allow_html=True)
         
         # 作成ボタン
-        st.markdown('<div class="big-create-btn">', unsafe_allow_html=True)
+        st.markdown('<div style="max-width:600px; margin:0 auto;">', unsafe_allow_html=True)
         if st.button("✨ 新しい診断を作成する", type="primary", use_container_width=True):
             st.session_state.page_mode = 'create'
             st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
-        st.write("")
+        st.markdown('</div><br>', unsafe_allow_html=True)
 
         # ギャラリー
         st.markdown("### 📚 新着の診断")
@@ -154,25 +153,28 @@ else:
                         views = q.get('views', 0)
                         likes = q.get('likes', 0)
                         
-                        with st.container(border=True):
-                            # カード表示
-                            st.markdown(
-                                styles.get_card_content_html(q.get('title','無題'), content.get('intro_text',''), img_url, views, likes), 
-                                unsafe_allow_html=True
-                            )
-                            
-                            # 純正リンクボタン
-                            st.link_button("▶ 今すぐ診断する", link_url, use_container_width=True)
-                            
-                            # 管理者削除ボタン
-                            if st.session_state.is_admin:
-                                st.markdown('<div class="delete-btn">', unsafe_allow_html=True)
-                                if st.button("🗑️ 削除", key=f"del_{q['id']}"):
-                                    if logic.delete_quiz(supabase, q['id']):
-                                        st.toast("削除しました")
-                                        time.sleep(1)
-                                        st.rerun()
-                                st.markdown('</div>', unsafe_allow_html=True)
+                        # ★ここを修正: 閲覧数といいね数を渡す
+                        st.markdown(
+                            styles.get_clickable_card_html(
+                                link_url, 
+                                q.get('title','無題'), 
+                                content.get('intro_text',''), 
+                                img_url, 
+                                views, 
+                                likes
+                            ), 
+                            unsafe_allow_html=True
+                        )
+                        
+                        # 管理者削除ボタン
+                        if st.session_state.is_admin:
+                            st.markdown('<div class="delete-btn">', unsafe_allow_html=True)
+                            if st.button("🗑️ 削除", key=f"del_{q['id']}"):
+                                if logic.delete_quiz(supabase, q['id']):
+                                    st.toast("削除しました")
+                                    time.sleep(1)
+                                    st.rerun()
+                            st.markdown('</div>', unsafe_allow_html=True)
                         
                         st.write("") 
             else:
@@ -225,7 +227,6 @@ else:
                             {{ "question": "...", "answers": [ {{ "text": "...", "type": "A" }}, {{ "text": "...", "type": "B" }}, {{ "text": "...", "type": "C" }}, {{ "text": "...", "type": "A" }} ] }}
                         ]
                     }}
-                    質問は5問。JSONのみ出力。
                     """
                     res = client.chat.completions.create(
                         model="gpt-4o-mini", 
@@ -263,13 +264,12 @@ else:
                 except Exception as e:
                     st.error(e)
 
-        # フォーム変数初期化 (ここでの改行が重要)
+        # フォーム変数初期化
         init_state('page_title', '')
         init_state('main_heading', '')
         init_state('intro_text', '')
         init_state('image_keyword', '')
         
-        # 入力フォーム
         with st.form("editor"):
             st.subheader("基本情報")
             page_title = st.text_input("タブ名", key='page_title')
