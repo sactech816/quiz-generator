@@ -4,7 +4,9 @@ import smtplib
 from email.mime.text import MIMEText
 from supabase import create_client
 
-# --- HTMLテンプレート ---
+# ==========================================
+# HTMLテンプレート (ダウンロード/プレビュー用)
+# ==========================================
 HTML_TEMPLATE_RAW = """<!DOCTYPE html>
 <html lang="ja">
 <head>
