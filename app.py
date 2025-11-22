@@ -6,6 +6,7 @@ import time
 import stripe
 import streamlit.components.v1 as components
 import urllib.parse
+import math  # ページネーション計算用に追加
 
 import styles
 import logic
@@ -16,8 +17,7 @@ os.environ["PYTHONIOENCODING"] = "utf-8"
 # ページ設定
 st.set_page_config(page_title="診断クイズメーカー", page_icon="💎", layout="wide")
 
-# ★追加: ブラウザの「翻訳しますか？」ポップアップを抑制するスクリプト
-# ページの言語を強制的に 'ja' に設定します
+# ブラウザの「翻訳しますか？」ポップアップを抑制するスクリプト
 components.html("""
     <script>
         window.parent.document.documentElement.lang = 'ja';
@@ -38,8 +38,12 @@ init_state('ai_count', 0)
 init_state('page_mode', 'home')
 init_state('is_admin', False)
 init_state('draft_data', None)
+# ページネーション用
+init_state('current_page', 1)
+init_state('prev_sort_order', '新着順') # 並べ替え変更検知用
 
 AI_LIMIT = 5
+ITEMS_PER_PAGE = 15  # 1ページあたりの表示数
 
 query_params = st.query_params
 quiz_id = query_params.get("id", None)
@@ -134,7 +138,7 @@ else:
             st.rerun()
         st.markdown('</div><br>', unsafe_allow_html=True)
 
-        # --- 並べ替え機能の実装 ---
+        # --- 並べ替え機能 ---
         st.markdown("### 📚 新着の診断")
         if supabase:
             sort_col1, sort_col2 = st.columns([1, 4])
@@ -145,8 +149,14 @@ else:
                     label_visibility="collapsed"
                 )
             
-            # クエリの構築
-            query = supabase.table("quizzes").select("*").eq("is_public", True)
+            # 並べ替えが変わったらページを1に戻す
+            if sort_order != st.session_state.prev_sort_order:
+                st.session_state.current_page = 1
+                st.session_state.prev_sort_order = sort_order
+                st.rerun()
+            
+            # クエリの構築 (count="exact"で総数を取得)
+            query = supabase.table("quizzes").select("*", count="exact").eq("is_public", True)
             
             if sort_order == "新着順":
                 query = query.order("created_at", desc=True)
@@ -154,8 +164,16 @@ else:
                 query = query.order("views", desc=True)
             elif sort_order == "いいね順":
                 query = query.order("likes", desc=True)
-                
-            res = query.limit(15).execute()
+            
+            # ページネーション計算
+            page = st.session_state.current_page
+            start = (page - 1) * ITEMS_PER_PAGE
+            end = start + ITEMS_PER_PAGE - 1
+            
+            # データ取得 (.rangeを使用)
+            res = query.range(start, end).execute()
+            total_count = res.count if res.count is not None else 0
+            total_pages = math.ceil(total_count / ITEMS_PER_PAGE)
 
             if res.data:
                 cols = st.columns(3)
@@ -164,6 +182,7 @@ else:
                         content = q.get('content', {})
                         keyword = content.get('image_keyword', 'abstract')
                         
+                        # 日本語キーワード対応
                         encoded_keyword = urllib.parse.quote(keyword)
                         
                         seed = q['id'][-4:] 
@@ -232,7 +251,55 @@ else:
                                         time.sleep(1)
                                         st.rerun()
                                 st.markdown('</div>', unsafe_allow_html=True)
-                        st.write("") 
+                        st.write("")
+
+                # --- ページネーションUI ---
+                if total_pages > 1:
+                    st.write("---")
+                    # ページネーション用ロジック
+                    def set_page(p):
+                        st.session_state.current_page = p
+                    
+                    # 表示するページ番号リストを作成 (例: 1 ... 4 5 6 ... 10)
+                    pages_to_show = []
+                    if total_pages <= 7:
+                        pages_to_show = range(1, total_pages + 1)
+                    else:
+                        if page <= 4:
+                            pages_to_show = list(range(1, 6)) + ["...", total_pages]
+                        elif page >= total_pages - 3:
+                            pages_to_show = [1, "..."] + list(range(total_pages - 4, total_pages + 1))
+                        else:
+                            pages_to_show = [1, "..."] + list(range(page - 1, page + 2)) + ["...", total_pages]
+
+                    # ボタンを横並びに配置
+                    # 中央寄せのためにダミーのカラムを使う、またはシンプルに左寄せで並べる
+                    # ここではボタンの数に合わせてカラムを作成します
+                    cols = st.columns(len(pages_to_show) + 2) # +2は前へ・次へボタン
+                    
+                    # ＜ 前へ
+                    if cols[0].button("＜", key="prev_page", disabled=(page == 1)):
+                        set_page(page - 1)
+                        st.rerun()
+
+                    # 数字ボタン
+                    for idx, p in enumerate(pages_to_show):
+                        with cols[idx + 1]:
+                            if p == "...":
+                                st.write("...")
+                            else:
+                                # 現在のページはプライマリボタン（色付き）にする
+                                if cols[idx + 1].button(str(p), key=f"page_btn_{p}", type="primary" if p == page else "secondary"):
+                                    set_page(p)
+                                    st.rerun()
+
+                    # ＞ 次へ
+                    if cols[len(cols)-1].button("＞", key="next_page", disabled=(page == total_pages)):
+                        set_page(page + 1)
+                        st.rerun()
+
+                    st.caption(f"全 {total_count} 件中 {start + 1} - {min(end + 1, total_count)} 件を表示")
+
             else:
                 st.info("まだ投稿がありません")
 
@@ -276,6 +343,7 @@ else:
                         msg.info("AIが執筆中... (最大30秒かかります)")
                         client = openai.OpenAI(api_key=api_key)
                         
+                        # 日本語キーワードを強制するプロンプトに変更
                         prompt = f"""
                         あなたはプロの診断作家です。テーマ: {theme}
                         【絶対厳守】
