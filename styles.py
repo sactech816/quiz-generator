@@ -1,30 +1,120 @@
 import streamlit as st
 
+# ==========================================
+# CSS定義
+# ==========================================
 def apply_portal_style():
     """
-    【公開側】ポータル・プレイ画面用のモダンデザイン
+    【公開側】ポータル・プレイ画面用のデザイン
+    - 白背景 (Light Mode強制)
+    - 清潔感のあるWebサイト風
     """
     st.markdown("""
         <style>
-        /* --- 1. 全体設定 --- */
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap');
-        
+        /* 強制ライトモード (白背景) */
         .stApp {
-            background-color: #f8fafc !important; /* とても薄いグレー */
-            color: #1e293b !important;
-            font-family: 'Noto Sans JP', sans-serif;
+            background-color: #ffffff !important;
+            color: #333333 !important;
         }
         
+        /* コンテンツ幅を読みやすく調整 */
         .block-container {
-            max-width: 1100px;
+            max-width: 1000px;
             padding-top: 1rem;
             padding-bottom: 5rem;
         }
         
-        /* ヘッダー隠し */
+        /* Streamlitのヘッダー・フッターを隠す */
         #MainMenu, footer, header {visibility: hidden;}
-
-        /* --- 2. ヒーローセクション (トップの目立つ部分) --- */
+        
+        /* ポータル用のカードデザイン */
+        .quiz-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+            height: 100%;
+            transition: 0.2s;
+            display: flex;
+            flex-direction: column;
+        }
+        .quiz-card:hover {
+            transform: translateY(-3px);
+            border-color: #3b82f6;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+        }
+        
+        .quiz-thumb {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            background-color: #f1f5f9;
+        }
+        
+        .quiz-content {
+            padding: 15px;
+            flex-grow: 1;
+        }
+        
+        .quiz-title {
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-bottom: 5px;
+            color: #1e293b;
+            line-height: 1.4;
+        }
+        
+        .quiz-desc {
+            font-size: 0.85rem;
+            color: #64748b;
+            margin-bottom: 10px;
+            height: 40px;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+        
+        /* バッジ */
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        .badge-new { background: #dbeafe; color: #1e40af; }
+        
+        /* ボタン (白背景に合うデザイン) */
+        .stButton button {
+            background-color: #f8fafc;
+            border: 1px solid #cbd5e1;
+            color: #334155;
+            border-radius: 8px;
+            font-weight: bold;
+            padding: 0.6rem 1rem;
+            transition: all 0.2s;
+            width: 100%;
+        }
+        .stButton button:hover {
+            border-color: #3b82f6;
+            color: #2563eb;
+            background-color: #eff6ff;
+        }
+        /* 強調ボタン (青) */
+        .stButton button[kind="primary"] {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+        }
+        .stButton button[kind="primary"]:hover {
+            background-color: #1d4ed8;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+        
+        /* ヒーローセクション (トップ画像の代わり) */
         .hero-container {
             background: white;
             border-radius: 24px;
@@ -34,9 +124,8 @@ def apply_portal_style():
             border: 1px solid #e2e8f0;
             position: relative;
             overflow: hidden;
+            text-align: center;
         }
-        
-        /* 背景の装飾（ぼんやり光るオーブ） */
         .hero-orb {
             position: absolute;
             width: 300px;
@@ -47,88 +136,63 @@ def apply_portal_style():
             border-radius: 50%;
             z-index: 0;
         }
-
         .hero-content {
             position: relative;
             z-index: 1;
-        }
-
-        /* --- 3. カードデザイン (診断一覧) --- */
-        .quiz-card {
-            background: white;
-            border-radius: 16px;
-            padding: 20px;
-            height: 100%;
-            border: 1px solid #f1f5f9;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .quiz-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
-            border-color: #bfdbfe;
-        }
-
-        /* バッジ (NEWなど) */
-        .badge {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 6px;
-            font-size: 0.7rem;
-            font-weight: bold;
-            margin-bottom: 8px;
-        }
-        .badge-new { background: #dbeafe; color: #1e40af; }
-        .badge-hot { background: #fee2e2; color: #991b1b; }
-
-        /* --- 4. ボタンのカスタマイズ --- */
-        .stButton button {
-            width: 100%;
-            border-radius: 12px;
-            font-weight: 700;
-            border: none;
-            padding: 0.75rem 1rem;
-            transition: 0.2s;
-            background-color: #f1f5f9;
-            color: #475569;
-        }
-        .stButton button:hover {
-            background-color: #e2e8f0;
-            color: #1e293b;
-        }
-        
-        /* プライマリボタン (作成ボタンなど) */
-        .stButton button[kind="primary"] {
-            background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
-            color: white;
-            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
-        }
-        .stButton button[kind="primary"]:hover {
-            box-shadow: 0 8px 16px rgba(37, 99, 235, 0.4);
-            transform: scale(1.02);
-        }
-
-        /* --- 5. 入力フォーム --- */
-        .stTextInput input {
-            border-radius: 10px;
-            border: 2px solid #e2e8f0;
-            padding: 10px;
-        }
-        .stTextInput input:focus {
-            border-color: #3b82f6;
         }
         </style>
     """, unsafe_allow_html=True)
 
 def apply_editor_style():
-    """作成エディタ用（機能重視）"""
+    """
+    【制作側】エディタ画面用のデザイン
+    - Streamlit標準（ダークモード設定なら黒）をそのまま使う
+    - 余計な要素だけ隠す
+    """
     st.markdown("""
         <style>
+        /* 余計なメニューだけ隠す */
         #MainMenu, footer, header {visibility: hidden;}
-        .block-container { padding-top: 2rem; }
-        .stTextInput input, .stTextArea textarea { font-family: "Inter", sans-serif; }
+        
+        /* 入力フォームを見やすく */
+        .stTextInput input, .stTextArea textarea {
+            font-family: "Inter", sans-serif;
+        }
+        
+        /* コンテンツ幅 */
+        .block-container {
+            max-width: 1100px;
+            padding-top: 2rem;
+            padding-bottom: 5rem;
+        }
         </style>
     """, unsafe_allow_html=True)
+
+# ==========================================
+# HTMLパーツ (アプリ内で呼び出すHTML)
+# ==========================================
+HERO_HTML = """
+<div class="hero-container">
+    <div class="hero-orb"></div>
+    <div class="hero-content">
+        <h1 style="font-size: 2.5rem; font-weight: 900; color: #1e293b; margin-bottom: 10px;">
+            あなたのビジネスを加速する<br>
+            <span style="background: linear-gradient(to right, #2563eb, #9333ea); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">診断コンテンツ</span>を作ろう。
+        </h1>
+        <p style="color: #64748b;">AIがたった1分で構成案を作成。集客・販促に使える高品質な診断ツールを今すぐ公開。</p>
+    </div>
+</div>
+"""
+
+def get_card_html(title, desc, img_url):
+    """診断カードのHTMLを生成する"""
+    return f"""
+    <div class="quiz-card">
+        <img src="{img_url}" class="quiz-thumb" loading="lazy">
+        <div class="quiz-content">
+            <span class="badge badge-new">NEW</span>
+            <div class="quiz-title">{title}</div>
+            <div class="quiz-desc">{desc}</div>
+        </div>
+    </div>
+    """
