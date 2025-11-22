@@ -5,7 +5,7 @@ import os
 import time
 import stripe
 import streamlit.components.v1 as components
-import urllib.parse  # 日本語キーワードのエンコード用に追加
+import urllib.parse
 
 import styles
 import logic
@@ -15,6 +15,14 @@ os.environ["PYTHONIOENCODING"] = "utf-8"
 
 # ページ設定
 st.set_page_config(page_title="診断クイズメーカー", page_icon="💎", layout="wide")
+
+# ★追加: ブラウザの「翻訳しますか？」ポップアップを抑制するスクリプト
+# ページの言語を強制的に 'ja' に設定します
+components.html("""
+    <script>
+        window.parent.document.documentElement.lang = 'ja';
+    </script>
+""", height=0)
 
 # --- 初期設定 ---
 if "stripe" in st.secrets:
@@ -79,7 +87,6 @@ if quiz_id:
                     st.rerun()
         
         with c_back:
-            # ★修正: target="_blank" を指定して、確実に別タブで開くように修正
             st.markdown(styles.get_custom_button_html("/", "🏠 ポータルトップへ戻る", "blue", target="_self"), unsafe_allow_html=True)
 
     except Exception as e:
@@ -112,7 +119,6 @@ else:
     if st.session_state.page_mode == 'home':
         styles.apply_portal_style()
         
-        # レイアウト調整: 検索ボックスを狭くする（3:1）
         c1, c2 = st.columns([3, 1])
         with c1:
             st.markdown("### 💎 診断クイズメーカー")
@@ -158,11 +164,9 @@ else:
                         content = q.get('content', {})
                         keyword = content.get('image_keyword', 'abstract')
                         
-                        # ★日本語対応: キーワードをURLエンコードする
                         encoded_keyword = urllib.parse.quote(keyword)
                         
                         seed = q['id'][-4:] 
-                        # prompt/の後ろをエンコード済みキーワードに変更
                         img_url = f"https://image.pollinations.ai/prompt/{encoded_keyword}%20{seed}?width=350&height=180&nologo=true"
                         
                         base = "https://shindan-quiz-maker.streamlit.app"
@@ -183,22 +187,19 @@ else:
                                 unsafe_allow_html=True
                             )
                             
-                            # ★修正: リンクボタンに target="_blank" を追加
                             st.markdown(
                                 styles.get_custom_button_html(link_url, "▶ 今すぐ診断する", "green", target="_blank"),
                                 unsafe_allow_html=True
                             )
                             
-                            # ★追加: コピーして作成ボタン
                             if st.button("⚡ コピーして作る", key=f"copy_{q['id']}", use_container_width=True):
-                                # 既存データをセッションステートにロード
+                                content = q['content']
                                 st.session_state['page_title'] = content.get('page_title', '')
                                 st.session_state['main_heading'] = content.get('main_heading', '')
                                 st.session_state['intro_text'] = content.get('intro_text', '')
                                 st.session_state['image_keyword'] = content.get('image_keyword', '')
                                 st.session_state['color_main'] = content.get('color_main', '#2563eb')
                                 
-                                # 結果データのロード
                                 if 'results' in content:
                                     for t in ['A', 'B', 'C']:
                                         if t in content['results']:
@@ -211,7 +212,6 @@ else:
                                             st.session_state[f'res_line_text_{t}'] = r.get('line_text', '')
                                             st.session_state[f'res_line_img_{t}'] = r.get('line_img', '')
 
-                                # 質問データのロード
                                 if 'questions' in content:
                                     for qi, q_data in enumerate(content['questions']):
                                         if qi >= 5: break
@@ -224,7 +224,6 @@ else:
                                 st.session_state.page_mode = 'create'
                                 st.rerun()
 
-                            
                             if st.session_state.is_admin:
                                 st.markdown('<div class="delete-btn">', unsafe_allow_html=True)
                                 if st.button("🗑️ 削除", key=f"del_{q['id']}"):
@@ -247,7 +246,6 @@ else:
             
         st.title("📝 診断作成エディタ")
         
-        # AIサイドバー
         with st.sidebar:
             if "OPENAI_API_KEY" in st.secrets:
                 api_key = st.secrets["OPENAI_API_KEY"]
@@ -266,7 +264,6 @@ else:
 30代の起業を目指す人向けに、向いているビジネスモデルを診断して。
 辛口かつ論理的なアドバイスで、背中を押してほしい。"""
 
-            # 縦幅を拡張
             theme = st.text_area("テーマ・詳細設定", height=300, placeholder=theme_placeholder)
             st.caption("※AIの文章作成には10秒〜30秒ほどかかります。")
             
@@ -333,16 +330,12 @@ else:
                     except Exception as e:
                         st.error(e)
 
-        # フォーム変数初期化（既存値があればそれを使う）
         init_state('page_title', '')
         init_state('main_heading', '')
         init_state('intro_text', '')
         init_state('image_keyword', '')
         init_state('color_main', '#2563eb')
         
-        # ====================================================
-        # 1段階目: コンテンツ編集フォーム
-        # ====================================================
         with st.form("editor"):
             st.subheader("1. 基本設定")
             c1, c2 = st.columns(2)
@@ -350,7 +343,6 @@ else:
             with c2: main_heading = st.text_input("タイトル", key='main_heading')
             intro_text = st.text_area("導入文", key='intro_text')
             
-            # サムネイル設定 (ヒント追加)
             image_keyword = st.text_input(
                 "ポータル掲載用画像テーマ (英単語)", 
                 key='image_keyword', 
@@ -400,7 +392,6 @@ else:
             q_obj = []
             for q in range(1,6):
                 init_state(f'q_text_{q}','')
-                # Expanderですっきり収納
                 with st.expander(f"Q{q} の内容を編集", expanded=(q==1)):
                     qt = st.text_input(f"質問文 Q{q}", key=f'q_text_{q}')
                     st.markdown("##### 選択肢")
@@ -418,9 +409,6 @@ else:
             st.markdown("<br>", unsafe_allow_html=True)
             submitted = st.form_submit_button("次へ：公開設定に進む", type="primary", use_container_width=True)
 
-        # ====================================================
-        # 2段階目: 公開・価格設定 (フォームの外)
-        # ====================================================
         if submitted:
             st.session_state.draft_data = {
                 'page_title':page_title, 'main_heading':main_heading, 'intro_text':intro_text, 
@@ -442,10 +430,9 @@ else:
             st.markdown("---")
             st.subheader("📤 公開方法を選択")
             
-            # ボタンを縦に並べる
             sub_free = st.button("🌐 URL発行 (無料) - ポータルに自動掲載", type="primary", use_container_width=True)
             
-            st.write("") # スペース
+            st.write("")
             
             is_pub = st.checkbox("ポータルサイトにも掲載する (有料版オプション)", value=False)
             sub_paid = st.button(f"💾 {price}円で購入してダウンロード (有料)", use_container_width=True)
