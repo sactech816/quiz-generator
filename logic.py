@@ -73,11 +73,22 @@ HTML_TEMPLATE_RAW = """<!DOCTYPE html>
     document.addEventListener('DOMContentLoaded', () => {
         let questions = [], results = [], currentQuestionIndex = 0, userAnswers = [];
         const quizArea = document.getElementById('quiz-area'), resultArea = document.getElementById('result-area');
+        
+        // ★ランダムシャッフル関数を追加★
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
         function loadData() {
             const d = document.getElementById('quiz-data');
             questions = Array.from(d.querySelectorAll('[data-container="questions"] [data-item="question"]')).map(q => ({
                 text: q.querySelector('[data-key="text"]').textContent,
-                options: Array.from(q.querySelectorAll('[data-key="option"]')).map(o => ({ text: o.textContent, points: JSON.parse(o.dataset.points||'{}') }))
+                // ★ここで選択肢をシャッフルする★
+                options: shuffleArray(Array.from(q.querySelectorAll('[data-key="option"]')).map(o => ({ text: o.textContent, points: JSON.parse(o.dataset.points||'{}') })))
             }));
             results = Array.from(d.querySelectorAll('[data-container="results"] [data-item="result"]')).map(r => ({ id: r.dataset.id, html: r.innerHTML }));
         }
@@ -92,9 +103,9 @@ HTML_TEMPLATE_RAW = """<!DOCTYPE html>
             const r = calcResult();
             quizArea.classList.add('hidden');
             if(!r) return;
-            resultArea.innerHTML = `<div class="result-card">${r.html}</div><div class="mt-6 text-center"><button class="restart-button">もう一度診断する</button></div>`;
+            resultArea.innerHTML = `<div class="result-card">${r.html}</div><div class="mt-6 text-center"><button class="restart-button" onclick="location.reload()">もう一度診断する</button></div>`;
             resultArea.classList.remove('hidden');
-            resultArea.querySelector('.restart-button').addEventListener('click', startQuiz);
+            // resultArea.querySelector('.restart-button').addEventListener('click', startQuiz); // reloadにするため削除
         }
         function dispQ() {
             const q = questions[currentQuestionIndex];
