@@ -99,30 +99,31 @@ else:
                 for i, q in enumerate(res.data):
                     with cols[i % 3]:
                         content = q.get('content', {})
+                        # 画像
                         keyword = content.get('image_keyword', 'abstract')
                         seed = q['id'][-4:] 
                         img_url = f"https://image.pollinations.ai/prompt/{keyword}%20{seed}?width=350&height=180&nologo=true"
                         
-                        # リンクURL
+                        # URL
                         base = "https://shindan-quiz-maker.streamlit.app"
                         link_url = f"{base}/?id={q['id']}"
                         
-                        # ★カードのみ表示 (ボタンは削除)
-                        st.markdown(
-                            styles.get_clickable_card_html(link_url, q.get('title','無題'), content.get('intro_text',''), img_url), 
-                            unsafe_allow_html=True
-                        )
-                        
-                        # 管理者削除ボタン
-                        if st.session_state.is_admin:
-                            st.markdown('<div class="delete-btn">', unsafe_allow_html=True)
-                            if st.button("🗑️ 削除", key=f"del_{q['id']}", use_container_width=True):
-                                if logic.delete_quiz(supabase, q['id']):
-                                    st.toast("削除しました", icon="🗑️")
-                                    time.sleep(1); st.rerun()
-                            st.markdown('</div>', unsafe_allow_html=True)
-                        
-                        st.write("") 
+                        # カードコンテナ (border=Trueでカード枠を作る)
+                        with st.container(border=True):
+                            # 画像とテキスト (HTML)
+                            st.markdown(
+                                styles.get_card_content_html(q.get('title','無題'), content.get('intro_text',''), img_url),
+                                unsafe_allow_html=True
+                            )
+                            
+                            # 純正リンクボタン (黒くスタイリング済み)
+                            st.link_button("▶ 今すぐ診断する", link_url, use_container_width=True)
+                            
+                            # 削除ボタン (管理者のみ)
+                            if st.session_state.is_admin:
+                                if st.button("削除", key=f"del_{q['id']}", type="secondary", use_container_width=True):
+                                    if logic.delete_quiz(supabase, q['id']):
+                                        st.toast("削除しました"); time.sleep(1); st.rerun()
             else:
                 st.info("まだ投稿がありません")
 
@@ -143,7 +144,6 @@ else:
                 try:
                     msg = st.empty(); msg.info("AIが執筆中...")
                     client = openai.OpenAI(api_key=api_key)
-                    # プロンプト (質問5問, 選択肢4つ, 結果3つ)
                     prompt = f"""
                     あなたはプロの診断作家です。テーマ: {theme}
                     【絶対厳守の制約事項】
@@ -188,9 +188,8 @@ else:
                                 st.session_state[f'res_link_{t}'] = r.get('link','')
                     
                     if 'questions' in data:
-                        # ループ回数制限なしで全て取り込む
                         for i,q in enumerate(data['questions']):
-                            if i >= 6: break # 一応6問まで
+                            if i >= 6: break
                             st.session_state[f'q_text_{i+1}'] = q.get('question','')
                             for j,a in enumerate(q.get('answers',[])):
                                 if j >= 4: break
