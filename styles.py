@@ -8,44 +8,44 @@ def apply_portal_style():
         .stApp { background-color: #ffffff !important; color: #333333 !important; }
         .block-container { max-width: 1100px; padding-top: 1rem; padding-bottom: 5rem; }
         
-        /* --- UI非表示設定 (強力版) --- */
+        /* --- UI非表示設定 (超強力版) --- */
         
-        /* 1. ヘッダー全体 (右上のForkボタン、メニュー、装飾バーをまとめて消す) */
-        header[data-testid="stHeader"] { 
+        /* 1. ヘッダー・ツールバー・装飾ライン */
+        header[data-testid="stHeader"],
+        [data-testid="stToolbar"],
+        [data-testid="stDecoration"],
+        .stDeployButton { 
             display: none !important; 
             visibility: hidden !important;
         }
         
-        /* 2. デプロイ/Forkボタン (個別に念のため指定) */
-        .stDeployButton { display: none !important; }
-        
-        /* 3. ツールバー (右上の...メニュー) */
-        [data-testid="stToolbar"] { display: none !important; }
-        
-        /* 4. 装飾ライン (上部の虹色ライン) */
-        [data-testid="stDecoration"] { display: none !important; }
-        
-        /* 5. フッター ("Hosted with Streamlit"など) 
-           display:noneだと消えないことがあるため、visibility:hiddenで透明にして高さを0にする */
+        /* 2. フッター ("Hosted with Streamlit" など) 
+           display:noneで消えない場合があるため、透明にして画面外へ飛ばす */
         footer { 
             visibility: hidden !important; 
-            height: 0px !important;
-            padding: 0px !important;
-            margin: 0px !important;
+            opacity: 0 !important;
+            height: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            position: fixed !important;
+            left: -9999px !important; /* 画面外へ */
         }
         
-        /* 6. ステータスウィジェット (右下のRunningアニメーションやManage appの一部) */
+        /* 3. ステータスウィジェット (右下のRunningアニメーション等) */
         [data-testid="stStatusWidget"] { 
             display: none !important; 
             visibility: hidden !important;
         }
         
-        /* 7. ハンバーガーメニュー */
+        /* 4. ハンバーガーメニュー */
         #MainMenu { display: none !important; }
         
-        /* 8. ビューワーバッジ（プロフィールアイコン等） 
-           ※Streamlit Cloudの仕様変更でクラス名が変わる可能性があります */
-        .viewerBadge_container__1QSob { display: none !important; }
+        /* 5. ビューワーバッジ（右下のプロフィールアイコン） 
+           クラス名が変わっても対応できるよう、属性セレクタで指定 */
+        div[class*="viewerBadge"] { 
+            display: none !important; 
+            visibility: hidden !important;
+        }
         
         /* --- カードデザイン (高さ固定) --- */
         a.quiz-card-link {
@@ -60,7 +60,6 @@ def apply_portal_style():
             border: 1px solid #e2e8f0;
             border-radius: 12px;
             overflow: hidden;
-            /* ★ここを固定値にして高さを揃える */
             height: 420px; 
             display: flex;
             flex-direction: column;
@@ -80,11 +79,11 @@ def apply_portal_style():
         /* 画像エリア */
         .quiz-thumb-box {
             width: 100%;
-            height: 180px; /* 画像高さ固定 */
+            height: 180px;
             background-color: #f1f5f9;
             overflow: hidden;
             position: relative;
-            flex-shrink: 0; /* 縮小させない */
+            flex-shrink: 0;
         }
         .quiz-thumb {
             width: 100%;
@@ -103,26 +102,26 @@ def apply_portal_style():
             justify-content: flex-start;
         }
         
-        /* タイトル (2行制限) */
+        /* タイトル */
         .quiz-title { 
             font-weight: bold;
             font-size: 1.1rem;
             margin-bottom: 8px;
             color: #1e293b;
             line-height: 1.4;
-            height: 2.8em; /* 高さ確保 */
+            height: 2.8em;
             overflow: hidden;
             display: -webkit-box;
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
         }
         
-        /* 説明文 (3行制限・はみ出たら省略) */
+        /* 説明文 */
         .quiz-desc { 
             font-size: 0.85rem;
             color: #64748b;
             line-height: 1.6;
-            height: 4.8em; /* 高さ確保 */
+            height: 4.8em;
             overflow: hidden;
             display: -webkit-box;
             -webkit-line-clamp: 3;
@@ -142,7 +141,7 @@ def apply_portal_style():
             font-size: 0.7rem; padding: 2px 8px; border-radius: 12px; font-weight: bold; z-index: 2;
         }
         
-        /* ボタン */
+        /* ボタン共通設定 */
         .stButton button {
             background-color: #ffffff !important;
             border: 1px solid #cbd5e1 !important;
@@ -160,7 +159,7 @@ def apply_portal_style():
             transform: translateY(-1px);
         }
         
-        /* プライマリボタン (青) */
+        /* プライマリボタン */
         .stButton button[kind="primary"] {
             background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%) !important;
             color: white !important;
@@ -173,7 +172,7 @@ def apply_portal_style():
             color: white !important;
         }
         
-        /* セカンダリボタン (ピンク) */
+        /* セカンダリボタン */
         .stButton button[kind="secondary"] {
             background: #fff1f2 !important;
             color: #e11d48 !important;
@@ -185,7 +184,7 @@ def apply_portal_style():
             color: #be123c !important;
         }
 
-        /* リンクボタン (黒) */
+        /* リンクボタン */
         a[data-testid="stLinkButton"] {
             background-color: #1e293b !important;
             color: #ffffff !important;
@@ -194,7 +193,7 @@ def apply_portal_style():
             text-align: center !important;
             border-radius: 8px !important;
             transition: all 0.2s !important;
-            margin-top: auto !important; /* 自動的に下寄せ */
+            margin-top: auto !important;
             display: block !important;
             padding: 10px !important;
         }
@@ -229,22 +228,18 @@ def apply_editor_style():
         }
         [data-testid="stVerticalBlockBorderWrapper"] { background-color: #262730 !important; border: 1px solid #41444e !important; }
         
-        /* --- UI非表示設定 (エディタ画面でも同様に隠す) --- */
-        header[data-testid="stHeader"] { display: none !important; }
-        .stDeployButton { display: none !important; }
-        [data-testid="stToolbar"] { display: none !important; }
-        [data-testid="stDecoration"] { display: none !important; }
+        /* --- UI非表示設定 (エディタ画面でも同様) --- */
+        header[data-testid="stHeader"], .stDeployButton, [data-testid="stToolbar"], [data-testid="stDecoration"], [data-testid="stStatusWidget"], #MainMenu, div[class*="viewerBadge"] { 
+            display: none !important; 
+        }
         
         /* フッター隠し */
         footer { 
             visibility: hidden !important; 
             height: 0px !important;
-            padding: 0px !important;
-            margin: 0px !important;
+            position: fixed !important;
+            left: -9999px !important;
         }
-        
-        [data-testid="stStatusWidget"] { display: none !important; }
-        #MainMenu { display: none !important; }
         
         .block-container { padding-top: 2rem; padding-bottom: 5rem; }
         </style>
@@ -258,7 +253,7 @@ HERO_HTML = """
 </div>
 """
 
-# カードの中身（画像とテキストのみHTMLで描画）
+# カードの中身
 def get_card_content_html(title, desc, img_url, views=0, likes=0):
     return f"""
     <div class="card-img-box">
@@ -272,7 +267,7 @@ def get_card_content_html(title, desc, img_url, views=0, likes=0):
     </div>
     """
 
-# カスタムボタンHTML生成関数
+# カスタムボタンHTML
 def get_custom_button_html(url, text, color="blue", target="_top"):
     color_map = {
         "blue": "background-color: #2563eb; color: white;",
