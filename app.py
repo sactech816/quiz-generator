@@ -110,7 +110,7 @@ else:
     if st.session_state.page_mode == 'home':
         styles.apply_portal_style()
         
-        c1, c2 = st.columns([1, 2])
+        c1, c2 = st.columns([3, 1])
         with c1:
             st.markdown("### 💎 診断クイズメーカー")
         with c2:
@@ -422,5 +422,6 @@ else:
                             
                     except Exception as e:
                         st.error(f"保存エラー: {e}")
+
 
 
