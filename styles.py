@@ -1,8 +1,5 @@
 import streamlit as st
 
-# ==========================================
-# CSS (デザイン定義)
-# ==========================================
 def apply_portal_style():
     """公開画面用の白ベースデザイン"""
     st.markdown("""
@@ -12,13 +9,15 @@ def apply_portal_style():
         .block-container { max-width: 1100px; padding-top: 1rem; padding-bottom: 5rem; }
         
         /* UI隠し */
-        #MainMenu, footer, header {visibility: hidden !important;} 
+        #MainMenu {visibility: hidden !important;} 
+        footer {visibility: hidden !important;} 
+        header {visibility: hidden !important;} 
         .stDeployButton {display:none !important;}
         [data-testid="stToolbar"] {display: none !important;}
         [data-testid="stDecoration"] {display: none !important;}
         [data-testid="stStatusWidget"] {visibility: hidden !important;}
         
-        /* --- カードデザイン --- */
+        /* --- カードデザイン (高さ固定) --- */
         a.quiz-card-link {
             text-decoration: none !important;
             color: inherit !important;
@@ -26,13 +25,13 @@ def apply_portal_style():
         }
         a.quiz-card-link:hover { text-decoration: none !important; }
 
-        /* カード本体 (高さ固定・レイアウト調整) */
         .quiz-card {
             background: white;
             border: 1px solid #e2e8f0;
             border-radius: 12px;
             overflow: hidden;
-            height: 420px; /* 高さを確保 */
+            /* ★ここを固定値にして高さを揃える */
+            height: 420px; 
             display: flex;
             flex-direction: column;
             box-shadow: 0 2px 4px rgba(0,0,0,0.02);
@@ -55,7 +54,7 @@ def apply_portal_style():
             background-color: #f1f5f9;
             overflow: hidden;
             position: relative;
-            flex-shrink: 0;
+            flex-shrink: 0; /* 縮小させない */
         }
         .quiz-thumb {
             width: 100%;
@@ -81,24 +80,24 @@ def apply_portal_style():
             margin-bottom: 8px;
             color: #1e293b;
             line-height: 1.4;
-            height: 2.8em;
+            height: 2.8em; /* 高さ確保 */
             overflow: hidden;
             display: -webkit-box;
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
         }
         
-        /* 説明文 (3行制限) */
+        /* 説明文 (3行制限・はみ出たら省略) */
         .quiz-desc { 
             font-size: 0.85rem;
             color: #64748b;
-            line-height: 1.5;
-            height: 4.5em;
+            line-height: 1.6;
+            height: 4.8em; /* 高さ確保 */
             overflow: hidden;
             display: -webkit-box;
             -webkit-line-clamp: 3;
             -webkit-box-orient: vertical;
-            margin-bottom: auto; /* 下に余白を作る */
+            margin-bottom: auto;
         }
         
         /* バッジ */
@@ -165,9 +164,9 @@ def apply_portal_style():
             text-align: center !important;
             border-radius: 8px !important;
             transition: all 0.2s !important;
-            margin-top: 5px !important;
+            margin-top: auto !important; /* 自動的に下寄せ */
             display: block !important;
-            padding: 0.6rem !important;
+            padding: 10px !important;
         }
         a[data-testid="stLinkButton"]:hover {
             background-color: #334155 !important;
