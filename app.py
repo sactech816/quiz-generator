@@ -3,11 +3,12 @@ import json
 import openai
 import os
 import time
-import smtplib
 import stripe
-from email.mime.text import MIMEText
-from supabase import create_client, Client
 import streamlit.components.v1 as components
+
+# --- 分割ファイルをインポート ---
+import styles
+import logic
 
 # 日本語文字化け防止
 os.environ["PYTHONIOENCODING"] = "utf-8"
@@ -15,16 +16,9 @@ os.environ["PYTHONIOENCODING"] = "utf-8"
 # ページ設定
 st.set_page_config(page_title="Diagnosis Portal", page_icon="💎", layout="wide")
 
-# --- 設定読み込み ---
-if "stripe" in st.secrets:
-    stripe.api_key = st.secrets["stripe"]["api_key"]
-
-@st.cache_resource
-def init_supabase():
-    if "supabase" in st.secrets:
-        return create_client(st.secrets["supabase"]["url"], st.secrets["supabase"]["key"])
-    return None
-supabase = init_supabase()
+# --- 初期設定 ---
+if "stripe" in st.secrets: stripe.api_key = st.secrets["stripe"]["api_key"]
+supabase = logic.init_supabase()
 
 def init_state(key, val):
     if key not in st.session_state: st.session_state[key] = val
@@ -33,153 +27,8 @@ init_state('ai_count', 0)
 init_state('page_mode', 'home')
 AI_LIMIT = 5
 
-# --- メール送信関数 ---
-def send_email(to_email, quiz_url, quiz_title):
-    try:
-        sender_email = st.secrets["email"]["address"]
-        sender_password = st.secrets["email"]["password"]
-        subject = "【診断メーカー】作成された診断のURLをお届けします"
-        body = f"""
-        診断を作成いただきありがとうございます！
-        以下のURLから、作成した診断にアクセスできます。
-        
-        ■タイトル: {quiz_title}
-        ■URL: {quiz_url}
-        --------------------------------------------------
-        ※このメールは自動送信されています。
-        """
-        msg = MIMEText(body)
-        msg['Subject'] = subject
-        msg['From'] = sender_email
-        msg['To'] = to_email
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-            server.login(sender_email, sender_password)
-            server.send_message(msg)
-        return True
-    except: return False
-
 # ==========================================
-# HTMLテンプレート (公開・ダウンロード用)
-# ==========================================
-HTML_TEMPLATE_RAW = """<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>[[PAGE_TITLE]]</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Noto Sans JP', sans-serif; background-color: #f3f4f6; color: #1f2937; display: flex; flex-direction: column; min-height: 100vh; }
-        .quiz-container-wrapper { flex-grow: 1; display: flex; justify-content: center; align-items: flex-start; padding: 2rem; }
-        .quiz-container { max-width: 700px; width: 100%; padding: 2.5rem; background-color: white; border-radius: 0.75rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
-        .question-card, .result-card { padding: 1.5rem; border: 1px solid #e5e7eb; border-radius: 0.5rem; margin-bottom: 1.5rem; }
-        .option-button { display: block; width: 100%; text-align: left; padding: 1rem 1.25rem; margin-bottom: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.375rem; background-color: #f9fafb; transition: all 0.2s; cursor: pointer; }
-        .option-button:hover { background-color: #eff6ff; border-color: #3b82f6; }
-        .option-button.selected { background-color: #dbeafe; border-color: #3b82f6; font-weight: 600; }
-        .next-button, .restart-button { padding: 0.85rem 2rem; border-radius: 0.375rem; font-weight: 600; transition: all 0.2s; text-align: center; display: inline-block; cursor: pointer; width: 100%; }
-        .next-button { background-color: #2563eb; color: white; border: none; }
-        .next-button:hover { background-color: #1d4ed8; }
-        .next-button:disabled { background-color: #9ca3af; cursor: not-allowed; }
-        .restart-button { background-color: #4b5563; color: white; margin-top: 1rem; border: none; }
-        .progress-bar-container { width: 100%; background-color: #e5e7eb; border-radius: 99px; overflow: hidden; margin-bottom: 1.5rem; }
-        .progress-bar { height: 0.5rem; background-color: #2563eb; width: 0%; transition: width 0.3s ease-in-out; }
-        .hidden { display: none; }
-        .result-title { font-size: 1.75rem; font-weight: 700; color: #1e3a8a; margin-bottom: 1rem; text-align: center; }
-        .result-text { line-height: 1.8; color: #4b5563; }
-        .flyer-link-button { background-color: #059669; color: white; text-decoration: none; display: block; padding: 1rem; border-radius: 0.375rem; text-align: center; font-weight: bold; transition: transform 0.2s; }
-        .flyer-link-button:hover { transform: scale(1.02); }
-    </style>
-</head>
-<body>
-    <div id="quiz-data" style="display: none;">
-        <div data-container="questions">[[QUESTIONS_HTML]]</div>
-        <div data-container="results">[[RESULTS_HTML]]</div>
-    </div>
-    <div class="quiz-container-wrapper">
-        <div class="quiz-container">
-            <h1 class="text-2xl font-bold text-center mb-4 text-slate-800">[[MAIN_HEADING]]</h1>
-            <p class="text-center text-gray-600 mb-8">[[INTRO_TEXT]]</p>
-            <div id="quiz-area"></div>
-            <div id="result-area" class="hidden"></div>
-        </div>
-    </div>
-    <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        let questions = [], results = [], currentQuestionIndex = 0, userAnswers = [];
-        const quizArea = document.getElementById('quiz-area'), resultArea = document.getElementById('result-area');
-        function loadData() {
-            const d = document.getElementById('quiz-data');
-            questions = Array.from(d.querySelectorAll('[data-container="questions"] [data-item="question"]')).map(q => ({
-                text: q.querySelector('[data-key="text"]').textContent,
-                options: Array.from(q.querySelectorAll('[data-key="option"]')).map(o => ({ text: o.textContent, points: JSON.parse(o.dataset.points||'{}') }))
-            }));
-            results = Array.from(d.querySelectorAll('[data-container="results"] [data-item="result"]')).map(r => ({ id: r.dataset.id, html: r.innerHTML }));
-        }
-        function calcResult() {
-            const s = {};
-            userAnswers.forEach(a => { for(const t in a) s[t]=(s[t]||0)+a[t]; });
-            let max=-1, rid=null;
-            for(const r of results) { if((s[r.id]||0)>max) { max=s[r.id]; rid=r.id; } }
-            return results.find(r => r.id===rid);
-        }
-        function showResult() {
-            const r = calcResult();
-            quizArea.classList.add('hidden');
-            if(!r) return;
-            resultArea.innerHTML = `<div class="result-card">${r.html}</div><div class="mt-6 text-center"><button class="restart-button">もう一度診断する</button></div>`;
-            resultArea.classList.remove('hidden');
-            resultArea.querySelector('.restart-button').addEventListener('click', startQuiz);
-        }
-        function dispQ() {
-            const q = questions[currentQuestionIndex];
-            const pct = ((currentQuestionIndex)/questions.length)*100;
-            quizArea.innerHTML = `
-                <div class="progress-bar-container"><div class="progress-bar" style="width: ${pct}%"></div></div>
-                <div class="question-card"><p class="text-lg font-bold mb-4 text-slate-700">Q${currentQuestionIndex+1}. ${q.text}</p>${q.options.map((o,i)=>`<button class="option-button" data-index="${i}">${o.text}</button>`).join('')}</div>
-                <div class="mt-6"><button class="next-button" disabled>次の質問へ</button></div>
-            `;
-            const nBtn = quizArea.querySelector('.next-button');
-            if(currentQuestionIndex===questions.length-1) nBtn.textContent="結果を見る";
-            quizArea.querySelectorAll('.option-button').forEach(b => b.addEventListener('click', e => {
-                quizArea.querySelectorAll('.option-button').forEach(btn=>btn.classList.remove('selected'));
-                e.target.classList.add('selected');
-                userAnswers[currentQuestionIndex] = q.options[e.target.dataset.index].points;
-                nBtn.disabled=false;
-            }));
-            nBtn.addEventListener('click', () => { if(userAnswers[currentQuestionIndex]==null)return; (currentQuestionIndex<questions.length-1)?(currentQuestionIndex++,dispQ()):showResult(); });
-        }
-        function startQuiz() { currentQuestionIndex=0; userAnswers=[]; resultArea.classList.add('hidden'); quizArea.classList.remove('hidden'); dispQ(); }
-        loadData(); startQuiz();
-    });
-    </script>
-</body>
-</html>"""
-
-def generate_html_content(data):
-    html = HTML_TEMPLATE_RAW
-    html = html.replace("[[PAGE_TITLE]]", data.get('page_title', '診断'))
-    html = html.replace("[[MAIN_HEADING]]", data.get('main_heading', 'タイトル'))
-    html = html.replace("[[INTRO_TEXT]]", data.get('intro_text', ''))
-    q_html = ""
-    for q in data.get('questions', []):
-        o_html = ""
-        for ans in q['answers']:
-            pts = json.dumps({ans['type']: 1}, ensure_ascii=False).replace('"', '&quot;')
-            o_html += f'<div data-key="option" data-points="{pts}">{ans["text"]}</div>'
-        q_html += f'<div data-item="question"><p data-key="text">{q["question"]}</p><div data-key="options">{o_html}</div></div>'
-    html = html.replace("[[QUESTIONS_HTML]]", q_html)
-    r_html = ""
-    for k, v in data.get('results', {}).items():
-        b_html = ""
-        if v.get('link') and v.get('btn'):
-            b_html = f'<div class="mt-6 text-center"><a href="{v["link"]}" target="_blank" class="flyer-link-button">{v["btn"]} ➤</a></div>'
-        r_html += f'<div data-item="result" data-id="{k}"><h2 data-key="title">{v["title"]}</h2><p data-key="description" class="result-text">{v["desc"]}</p>{b_html}</div>'
-    html = html.replace("[[RESULTS_HTML]]", r_html)
-    return html
-
-# ==========================================
-# メイン処理
+# メイン処理 (分岐ロジック)
 # ==========================================
 query_params = st.query_params
 quiz_id = query_params.get("id", None)
@@ -187,13 +36,7 @@ session_id = query_params.get("session_id", None)
 
 # --- 🅰️ プレイ画面 (Web公開) ---
 if quiz_id:
-    # ★ここだけ白背景のWebデザインにする
-    st.markdown("""
-        <style>
-        .stApp { background-color: #ffffff; color: #333; }
-        .block-container { max-width: 700px; padding-top: 2rem; }
-        </style>
-    """, unsafe_allow_html=True)
+    styles.apply_portal_style() # 白背景デザイン
 
     if not supabase: st.stop()
     try:
@@ -204,7 +47,7 @@ if quiz_id:
             st.stop()
         
         data = res.data[0]['content']
-        html_content = generate_html_content(data)
+        html_content = logic.generate_html_content(data)
         components.html(html_content, height=800, scrolling=True)
         
         if st.button("ポータルトップへ戻る"):
@@ -214,6 +57,7 @@ if quiz_id:
 
 # --- 🅱️ 決済完了画面 ---
 elif session_id:
+    styles.apply_portal_style() # 白背景デザイン
     try:
         session = stripe.checkout.Session.retrieve(session_id)
         if session.payment_status == 'paid':
@@ -223,7 +67,7 @@ elif session_id:
                 data = res.data[0]['content']
                 st.balloons()
                 st.success("✅ お支払いが完了しました！")
-                final_html = generate_html_content(data)
+                final_html = logic.generate_html_content(data)
                 st.download_button("📥 HTMLをダウンロード", final_html, "diagnosis.html", "text/html", type="primary")
                 if st.button("トップに戻る"): st.query_params.clear(); st.rerun()
                 st.stop()
@@ -231,30 +75,23 @@ elif session_id:
 
 # --- 🆑 ポータル & 作成画面 ---
 else:
-    # ★エディタ画面は強制ダークモード(Streamlitデフォルト)を使用
-    # 特に追加CSSを書かなければ、自動的にダーク系の標準デザインになります
-    # (もし白くなってしまう場合は、ユーザー設定でDark Modeを選んでもらうか、以下で強制します)
-    st.markdown("""
-        <style>
-        /* エディタ画面用のダークモード強制 (必要であれば) */
-        .stApp {
-            background-color: #0e1117;
-            color: #ffffff;
-        }
-        /* 入力欄の調整 */
-        .stTextInput input, .stTextArea textarea {
-            color: #ffffff;
-            background-color: #262730;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-
     if st.session_state.page_mode == 'home':
-        st.markdown("# Diagnosis Portal")
-        c1, c2, c3 = st.columns([1, 2, 1])
-        with c2:
-            if st.button("✨ 新しい診断を作成する", type="primary", use_container_width=True):
+        styles.apply_portal_style() # 白背景デザイン
+        
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); padding: 40px; border-radius: 20px; text-align: center; margin-bottom: 30px; border: 1px solid #bae6fd;">
+            <h1 style="color: #0284c7; font-size: 2.5rem; font-weight: 800; margin-bottom: 10px;">Diagnosis Portal</h1>
+            <p style="color: #475569;">1時間で作る！オリジナル診断サイト</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            if st.button("✨ 作成する", type="primary", use_container_width=True):
                 st.session_state.page_mode = 'create'; st.rerun()
+        with c2: st.button("🔥 人気順", use_container_width=True)
+        with c3: st.button("🆕 新着順", use_container_width=True)
+        with c4: st.button("📖 使い方", use_container_width=True)
         
         st.markdown("### 📚 新着ギャラリー")
         if supabase:
@@ -269,6 +106,8 @@ else:
                             st.link_button("▶ 遊んでみる", f"{base}/?id={q['id']}", use_container_width=True)
 
     elif st.session_state.page_mode == 'create':
+        styles.apply_editor_style() # ダークモード対応デザイン
+        
         if st.button("← ポータルへ戻る"):
             st.session_state.page_mode = 'home'; st.rerun()
             
@@ -368,7 +207,7 @@ else:
                             base = "https://shindan-quiz-maker.streamlit.app"
                             
                             if sub_free:
-                                if send_email(email, f"{base}/?id={new_id}", main_heading):
+                                if logic.send_email(email, f"{base}/?id={new_id}", main_heading):
                                     st.success("公開しました！メールを確認してください")
                                     st.balloons(); time.sleep(2); st.session_state.page_mode='home'; st.rerun()
                                 else: st.error("メール送信失敗")
