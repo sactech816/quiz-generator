@@ -28,8 +28,7 @@ def init_state(key, val):
 init_state('ai_count', 0)
 init_state('page_mode', 'home')
 init_state('is_admin', False)
-init_state('draft_data', None) # フォームの一時保存用
-
+init_state('draft_data', None)
 AI_LIMIT = 5
 
 query_params = st.query_params
@@ -45,13 +44,12 @@ if query_params.get("admin") == "secret":
 # メイン処理
 # ==========================================
 
-# --- 🅰️ プレイ画面 (Web公開) ---
+# --- 🅰️ プレイ画面 ---
 if quiz_id:
     styles.apply_portal_style()
     if not supabase:
         st.stop()
     try:
-        # PVカウントアップ
         if f"viewed_{quiz_id}" not in st.session_state:
             logic.increment_views(supabase, quiz_id)
             st.session_state[f"viewed_{quiz_id}"] = True
@@ -84,7 +82,7 @@ if quiz_id:
     except Exception as e:
         st.error(e)
 
-# --- 🅱️ 決済完了画面 ---
+# --- 🅱️ 決済完了 ---
 elif session_id:
     styles.apply_portal_style()
     try:
@@ -107,7 +105,6 @@ elif session_id:
 
 # --- 🆑 ポータル & 作成画面 ---
 else:
-    # 1. ポータルトップ
     if st.session_state.page_mode == 'home':
         styles.apply_portal_style()
         
@@ -173,7 +170,6 @@ else:
             else:
                 st.info("まだ投稿がありません")
 
-    # 2. 作成エディタ
     elif st.session_state.page_mode == 'create':
         styles.apply_editor_style()
         
@@ -183,7 +179,6 @@ else:
             
         st.title("📝 診断作成エディタ")
         
-        # AIサイドバー
         with st.sidebar:
             if "OPENAI_API_KEY" in st.secrets:
                 api_key = st.secrets["OPENAI_API_KEY"]
@@ -193,7 +188,6 @@ else:
             
             st.header("🧠 AIアシスタント")
             
-            # ★ヒントを追加
             theme_placeholder = """【良い診断を作るためのヒント】
 1. ターゲット：誰に向けた診断か？ (例: 30代の婚活女性、フリーランス、猫好き)
 2. テーマ：何を診断するのか？ (例: 隠れた才能、相性の良いアロマ、運命の相手)
@@ -203,7 +197,6 @@ else:
 30代の起業を目指す人向けに、向いているビジネスモデルを診断して。
 辛口かつ論理的なアドバイスで、背中を押してほしい。"""
 
-            # ★縦幅を拡張 (height=300)
             theme = st.text_area("テーマ・詳細設定", height=300, placeholder=theme_placeholder)
             st.caption("※AIの文章作成には10秒〜30秒ほどかかります。")
             
@@ -273,9 +266,7 @@ else:
         init_state('image_keyword', '')
         init_state('color_main', '#2563eb')
         
-        # ====================================================
-        # 1段階目: コンテンツ編集フォーム
-        # ====================================================
+        # フォーム
         with st.form("editor"):
             st.subheader("1. 基本設定")
             c1, c2 = st.columns(2)
@@ -310,9 +301,9 @@ else:
                     
                     with st.expander("LINE登録誘導を追加する"):
                         line_u = st.text_input("LINE公式アカウントURL", key=f'res_line_url_{t}')
-                        line_t = st.text_area("誘導文 (例: 登録で特典プレゼント)", key=f'res_line_text_{t}')
+                        line_t = st.text_area("誘導文", key=f'res_line_text_{t}')
                         line_i = st.text_input("画像URL (任意)", key=f'res_line_img_{t}')
-                    
+                        
                     res_obj[t] = {
                         'title':rt, 'desc':rd, 'btn':rb, 'link':rl,
                         'line_url':line_u, 'line_text':line_t, 'line_img':line_i
@@ -325,7 +316,7 @@ else:
                 init_state(f'q_text_{q}','')
                 with st.expander(f"Q{q} の内容を編集", expanded=(q==1)):
                     qt = st.text_input(f"質問文 Q{q}", key=f'q_text_{q}')
-                    st.markdown("##### 選択肢")
+                    st.caption("選択肢設定")
                     ans_list = []
                     for a in range(1,5):
                         init_state(f'q{q}_a{a}_text',''); init_state(f'q{q}_a{a}_type','A')
@@ -340,9 +331,6 @@ else:
             st.markdown("<br>", unsafe_allow_html=True)
             submitted = st.form_submit_button("次へ：公開設定に進む", type="primary", use_container_width=True)
 
-        # ====================================================
-        # 2段階目: 公開・価格設定 (フォームの外)
-        # ====================================================
         if submitted:
             st.session_state.draft_data = {
                 'page_title':page_title, 'main_heading':main_heading, 'intro_text':intro_text, 
@@ -364,10 +352,9 @@ else:
             st.markdown("---")
             st.subheader("📤 公開方法を選択")
             
-            # ボタンを縦に並べる
-            sub_free = st.button("🌐 URL発行 (無料) - ポータルに自動掲載", type="primary", use_container_width=True)
+            sub_free = st.button("🌐 無料でWeb公開する", type="primary", use_container_width=True)
             
-            st.write("") # スペース
+            st.write("")
             
             is_pub = st.checkbox("ポータルサイトにも掲載する (有料版オプション)", value=False)
             sub_paid = st.button(f"💾 {price}円で購入してダウンロード (有料)", use_container_width=True)
@@ -394,7 +381,7 @@ else:
                                 st.success("公開しました！メールを確認してください")
                                 st.balloons()
                                 time.sleep(2)
-                                st.session_state.draft_data = None # クリア
+                                st.session_state.draft_data = None
                                 st.session_state.page_mode='home'
                                 st.rerun()
                             else:
