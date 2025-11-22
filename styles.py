@@ -2,101 +2,133 @@ import streamlit as st
 
 def apply_portal_style():
     """
-    【公開側】ポータル・プレイ画面用のデザイン
-    - 白背景で清潔感を出す
-    - Webサイトのようなカードデザイン
+    【公開側】ポータル・プレイ画面用のモダンデザイン
     """
     st.markdown("""
         <style>
-        /* 強制ライトモード (白背景) */
+        /* --- 1. 全体設定 --- */
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap');
+        
         .stApp {
-            background-color: #ffffff !important;
-            color: #333333 !important;
+            background-color: #f8fafc !important; /* とても薄いグレー */
+            color: #1e293b !important;
+            font-family: 'Noto Sans JP', sans-serif;
         }
         
-        /* コンテンツ幅を読みやすく調整 */
         .block-container {
-            max-width: 1000px;
-            padding-top: 2rem;
+            max-width: 1100px;
+            padding-top: 1rem;
             padding-bottom: 5rem;
         }
         
-        /* Streamlitのヘッダー・フッターを隠す */
+        /* ヘッダー隠し */
         #MainMenu, footer, header {visibility: hidden;}
-        
-        /* ポータル用のカードデザイン */
-        .portal-card {
+
+        /* --- 2. ヒーローセクション (トップの目立つ部分) --- */
+        .hero-container {
             background: white;
+            border-radius: 24px;
+            padding: 3rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 20px 40px -10px rgba(0,0,0,0.05);
             border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
-            height: 100%;
-            transition: 0.2s;
-        }
-        .portal-card:hover {
-            transform: translateY(-3px);
-            border-color: #3b82f6;
-            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
         }
         
-        /* ボタン (白背景に合うデザイン) */
-        .stButton button {
-            background-color: #f8fafc;
-            border: 1px solid #cbd5e1;
-            color: #334155;
-            border-radius: 8px;
+        /* 背景の装飾（ぼんやり光るオーブ） */
+        .hero-orb {
+            position: absolute;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(59,130,246,0.2) 0%, rgba(255,255,255,0) 70%);
+            top: -100px;
+            right: -100px;
+            border-radius: 50%;
+            z-index: 0;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        /* --- 3. カードデザイン (診断一覧) --- */
+        .quiz-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            height: 100%;
+            border: 1px solid #f1f5f9;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .quiz-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+            border-color: #bfdbfe;
+        }
+
+        /* バッジ (NEWなど) */
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.7rem;
             font-weight: bold;
-            padding: 0.6rem 1rem;
-            transition: all 0.2s;
+            margin-bottom: 8px;
+        }
+        .badge-new { background: #dbeafe; color: #1e40af; }
+        .badge-hot { background: #fee2e2; color: #991b1b; }
+
+        /* --- 4. ボタンのカスタマイズ --- */
+        .stButton button {
+            width: 100%;
+            border-radius: 12px;
+            font-weight: 700;
+            border: none;
+            padding: 0.75rem 1rem;
+            transition: 0.2s;
+            background-color: #f1f5f9;
+            color: #475569;
         }
         .stButton button:hover {
-            border-color: #3b82f6;
-            color: #2563eb;
-            background-color: #eff6ff;
-        }
-        /* 強調ボタン (青) */
-        .stButton button[kind="primary"] {
-            background-color: #2563eb;
-            color: white;
-            border: none;
-        }
-        .stButton button[kind="primary"]:hover {
-            background-color: #1d4ed8;
-            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+            background-color: #e2e8f0;
+            color: #1e293b;
         }
         
-        /* ヒーローセクション (トップ画像の代わり) */
-        .hero-box {
-            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-            padding: 40px 20px;
-            border-radius: 20px;
-            text-align: center;
-            margin-bottom: 40px;
-            border: 1px solid #bae6fd;
+        /* プライマリボタン (作成ボタンなど) */
+        .stButton button[kind="primary"] {
+            background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+        .stButton button[kind="primary"]:hover {
+            box-shadow: 0 8px 16px rgba(37, 99, 235, 0.4);
+            transform: scale(1.02);
+        }
+
+        /* --- 5. 入力フォーム --- */
+        .stTextInput input {
+            border-radius: 10px;
+            border: 2px solid #e2e8f0;
+            padding: 10px;
+        }
+        .stTextInput input:focus {
+            border-color: #3b82f6;
         }
         </style>
     """, unsafe_allow_html=True)
 
 def apply_editor_style():
-    """
-    【制作側】エディタ画面用のデザイン
-    - Streamlit標準のダークモードを活かす (目に優しい)
-    - 余計な装飾はせず、機能性を重視
-    """
+    """作成エディタ用（機能重視）"""
     st.markdown("""
         <style>
-        /* 余計なメニューだけ隠す */
         #MainMenu, footer, header {visibility: hidden;}
-        
-        /* 入力フォームを見やすく */
-        .stTextInput input, .stTextArea textarea {
-            font-family: "Inter", sans-serif;
-        }
-        
-        /* エディタ内のカード枠線を目立たなくする */
-        [data-testid="stVerticalBlockBorderWrapper"] {
-            border-color: #444;
-        }
+        .block-container { padding-top: 2rem; }
+        .stTextInput input, .stTextArea textarea { font-family: "Inter", sans-serif; }
         </style>
     """, unsafe_allow_html=True)
