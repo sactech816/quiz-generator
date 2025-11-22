@@ -4,93 +4,118 @@ import streamlit as st
 # CSS (デザイン定義)
 # ==========================================
 def apply_portal_style():
-    """
-    【公開側】ポータル・プレイ画面用のデザイン
-    - 白背景 (Light Mode強制)
-    - 余計なヘッダー類はすべて隠す
-    """
+    """公開画面用の白ベースデザイン"""
     st.markdown("""
         <style>
-        /* 強制ライトモード (白背景) */
-        .stApp {
-            background-color: #ffffff !important;
-            color: #333333 !important;
-        }
+        /* 全体設定 */
+        .stApp { background-color: #ffffff !important; color: #333333 !important; }
+        .block-container { max-width: 1100px; padding-top: 1rem; padding-bottom: 5rem; }
         
-        /* コンテンツ幅を読みやすく調整 */
-        .block-container {
-            max-width: 1100px;
-            padding-top: 1rem;
-            padding-bottom: 5rem;
-        }
-        
-        /* 公開画面ではヘッダー・サイドバーを完全に隠す */
+        /* 不要な要素を隠す */
         #MainMenu, footer, header {visibility: hidden;}
-        [data-testid="stSidebar"] {display: none;}
+        .stDeployButton {display:none;}
+        [data-testid="stElementToolbar"] {display: none;}
         
-        /* --- カードデザイン --- */
-        a.quiz-card-link {
-            text-decoration: none !important;
-            color: inherit !important;
-            display: block !important;
-        }
-        
-        .quiz-card {
-            background: white;
-            border: 1px solid #e2e8f0;
+        /* --- カードコンテナのデザイン (st.container) --- */
+        [data-testid="stVerticalBlockBorderWrapper"] {
             border-radius: 12px;
-            overflow: hidden;
-            height: 360px;
-            display: flex;
-            flex-direction: column;
+            border: 1px solid #e2e8f0;
+            background-color: white;
             box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-            transition: transform 0.2s, box-shadow 0.2s;
-            margin-bottom: 10px;
-            cursor: pointer;
+            transition: transform 0.2s;
+            overflow: hidden;
+            padding: 0 !important; /* 内側の余白をリセット */
+            margin-bottom: 1rem;
         }
-        
-        .quiz-card:hover {
+        [data-testid="stVerticalBlockBorderWrapper"]:hover {
+            border-color: #3b82f6;
             transform: translateY(-3px);
             box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
-            border-color: #cbd5e1;
         }
         
-        .quiz-thumb-box { width: 100%; height: 160px; background-color: #f1f5f9; overflow: hidden; position: relative; }
-        .quiz-thumb { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s; }
-        .quiz-card:hover .quiz-thumb { transform: scale(1.05); }
+        /* --- カード内部のHTML要素 --- */
+        .card-img-box {
+            width: calc(100% + 2rem); /* Streamlitのpaddingを相殺 */
+            margin: -1rem -1rem 0 -1rem; /* 上左右の余白を消す */
+            height: 160px;
+            background-color: #f1f5f9;
+            overflow: hidden;
+            position: relative;
+        }
+        .card-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s;
+        }
+        [data-testid="stVerticalBlockBorderWrapper"]:hover .card-img {
+            transform: scale(1.05);
+        }
         
-        .quiz-content { padding: 16px; flex-grow: 1; display:flex; flex-direction:column; }
-        .quiz-title { 
-            font-weight: bold; font-size: 1.1rem; margin-bottom: 8px; color: #1e293b; 
-            line-height: 1.4; height: 3em; overflow: hidden;
-            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+        .card-text-box {
+            padding: 10px 5px 5px 5px;
         }
-        .quiz-desc { 
-            font-size: 0.85rem; color: #64748b; margin-bottom: 10px; line-height: 1.5;
-            height: 4.5em; overflow: hidden;
-            display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+        .card-title {
+            font-weight: 700;
+            font-size: 1.1rem;
+            margin-bottom: 5px;
+            color: #1e293b;
+            line-height: 1.4;
+            height: 3em;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
         }
-        .badge-new { 
-            background: #dbeafe; color: #1e40af; font-size: 0.65rem; padding: 2px 6px; 
-            border-radius: 4px; font-weight: bold; position: absolute; top: 10px; left: 10px; z-index: 10;
+        .card-desc {
+            font-size: 0.85rem;
+            color: #64748b;
+            line-height: 1.5;
+            height: 4.5em;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            margin-bottom: 10px;
+        }
+        .badge-new {
+            position: absolute; top: 10px; left: 10px;
+            background: rgba(255,255,255,0.9); color: #1e40af;
+            font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; z-index: 2;
         }
         
-        /* ボタンデザイン */
-        .stButton button {
-            background-color: #f8fafc; border: 1px solid #cbd5e1; color: #334155;
-            border-radius: 8px; font-weight: bold; padding: 0.6rem 1rem; transition: all 0.2s; width: 100%;
+        /* --- リンクボタン (黒くする) --- */
+        a[data-testid="stLinkButton"] {
+            background-color: #1e293b !important; /* 黒/濃紺 */
+            color: #ffffff !important;
+            border: none !important;
+            font-weight: bold !important;
+            text-align: center !important;
+            border-radius: 8px !important;
+            transition: all 0.2s !important;
+            margin-top: 5px !important;
         }
-        .stButton button:hover { border-color: #3b82f6; color: #2563eb; background-color: #eff6ff; }
+        a[data-testid="stLinkButton"]:hover {
+            background-color: #334155 !important; /* ホバー時は少し明るく */
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2) !important;
+            text-decoration: none !important;
+        }
+
+        /* 作成ボタン (青) */
         .stButton button[kind="primary"] {
             background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
-            color: white; border: none;
+            color: white; border: none; font-size: 1.1rem; padding: 0.8rem;
+            box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
         }
         .stButton button[kind="primary"]:hover {
-            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); transform: scale(1.01);
+            background: linear-gradient(135deg, #1d4ed8 0%, #4338ca 100%);
+            transform: scale(1.01);
         }
-        .delete-btn button {
-            background-color: #fee2e2 !important; color: #991b1b !important; border: 1px solid #fecaca !important;
-            padding: 0.3rem 0.5rem !important; font-size: 0.8rem !important; margin-top: 5px; width: auto !important;
+        
+        /* 削除ボタン (赤) */
+        .stButton button[kind="secondary"] {
+            background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca;
+            font-size: 0.8rem; padding: 0.2rem 0.5rem;
         }
         
         /* ヒーローエリア */
@@ -102,28 +127,13 @@ def apply_portal_style():
     """, unsafe_allow_html=True)
 
 def apply_editor_style():
-    """
-    【制作側】エディタ画面用のデザイン
-    - Streamlit標準（ダークモード設定なら黒）をそのまま使う
-    - ★重要★ ヘッダー(サイドバー開閉ボタン)は隠さない！
-    """
+    """エディタ用の黒ベースデザイン"""
     st.markdown("""
         <style>
-        /* フッターだけ隠す（ヘッダーは残す） */
-        #MainMenu {visibility: hidden;} 
-        footer {visibility: hidden;}
-        
-        /* 入力フォームを見やすく */
-        .stTextInput input, .stTextArea textarea {
-            font-family: "Inter", sans-serif;
-        }
-        
-        /* コンテンツ幅 */
-        .block-container {
-            max-width: 1100px;
-            padding-top: 2rem;
-            padding-bottom: 5rem;
-        }
+        #MainMenu, footer, header {visibility: hidden;}
+        .stDeployButton {display:none;}
+        .block-container { padding-top: 2rem; padding-bottom: 5rem; }
+        .stTextInput input, .stTextArea textarea { font-family: "Inter", sans-serif; }
         </style>
     """, unsafe_allow_html=True)
 
@@ -137,19 +147,15 @@ HERO_HTML = """
 </div>
 """
 
-def get_clickable_card_html(link, title, desc, img_url):
-    """カード全体リンク"""
+# ★ここを修正しました（関数名変更＆中身調整）★
+def get_card_content_html(title, desc, img_url):
     return f"""
-    <a href="{link}" target="_top" class="quiz-card-link">
-        <div class="quiz-card">
-            <div class="quiz-thumb-box">
-                <span class="badge-new">NEW</span>
-                <img src="{img_url}" class="quiz-thumb" loading="lazy">
-            </div>
-            <div class="quiz-content">
-                <div class="quiz-title">{title}</div>
-                <div class="quiz-desc">{desc}</div>
-            </div>
-        </div>
-    </a>
+    <div class="card-img-box">
+        <span class="badge-new">NEW</span>
+        <img src="{img_url}" class="card-img" loading="lazy">
+    </div>
+    <div class="card-text-box">
+        <div class="card-title">{title}</div>
+        <div class="card-desc">{desc}</div>
+    </div>
     """
