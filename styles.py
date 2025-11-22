@@ -8,14 +8,31 @@ def apply_portal_style():
         .stApp { background-color: #ffffff !important; color: #333333 !important; }
         .block-container { max-width: 1100px; padding-top: 1rem; padding-bottom: 5rem; }
         
-        /* UI隠し */
-        #MainMenu {visibility: hidden !important;} 
-        footer {visibility: hidden !important;} 
-        header {visibility: hidden !important;} 
-        .stDeployButton {display:none !important;}
-        [data-testid="stToolbar"] {display: none !important;}
-        [data-testid="stDecoration"] {display: none !important;}
-        [data-testid="stStatusWidget"] {visibility: hidden !important;}
+        /* --- UI非表示設定 (強力版) --- */
+        
+        /* 1. ヘッダー全体 (右上のForkボタン、メニュー、装飾バーをまとめて消す) */
+        header[data-testid="stHeader"] { 
+            display: none !important; 
+            visibility: hidden !important;
+        }
+        
+        /* 2. デプロイ/Forkボタン (個別に念のため指定) */
+        .stDeployButton { display: none !important; }
+        
+        /* 3. ツールバー (右上の...メニュー) */
+        [data-testid="stToolbar"] { display: none !important; }
+        
+        /* 4. 装飾ライン (上部の虹色ライン) */
+        [data-testid="stDecoration"] { display: none !important; }
+        
+        /* 5. フッター ("Made with Streamlit"など) */
+        footer { display: none !important; }
+        
+        /* 6. ステータスウィジェット (右下のRunningアニメーションやManage appの一部) */
+        [data-testid="stStatusWidget"] { display: none !important; }
+        
+        /* 7. ハンバーガーメニュー */
+        #MainMenu { display: none !important; }
         
         /* --- カードデザイン (高さ固定) --- */
         a.quiz-card-link {
@@ -199,8 +216,15 @@ def apply_editor_style():
         }
         [data-testid="stVerticalBlockBorderWrapper"] { background-color: #262730 !important; border: 1px solid #41444e !important; }
         
-        #MainMenu {visibility: hidden;}
-        .stDeployButton {display:none;}
+        /* --- UI非表示設定 (エディタ画面でも同様に隠す) --- */
+        header[data-testid="stHeader"] { display: none !important; }
+        .stDeployButton { display: none !important; }
+        [data-testid="stToolbar"] { display: none !important; }
+        [data-testid="stDecoration"] { display: none !important; }
+        footer { display: none !important; }
+        [data-testid="stStatusWidget"] { display: none !important; }
+        #MainMenu { display: none !important; }
+        
         .block-container { padding-top: 2rem; padding-bottom: 5rem; }
         </style>
     """, unsafe_allow_html=True)
