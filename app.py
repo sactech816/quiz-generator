@@ -52,7 +52,7 @@ if quiz_id:
         st.markdown('</div>', unsafe_allow_html=True)
     except Exception as e: st.error(e)
 
-# --- 🅱️ 決済完了 ---
+# --- 🅱️ 決済完了画面 ---
 elif session_id:
     styles.apply_portal_style()
     try:
@@ -70,28 +70,23 @@ elif session_id:
                 st.stop()
     except Exception as e: st.error(f"決済エラー: {e}")
 
-# --- 🆑 ポータル & 作成 ---
+# --- 🆑 ポータル & 作成画面 ---
 else:
     if st.session_state.page_mode == 'home':
         styles.apply_portal_style()
         
-        # ナビ
         c1, c2 = st.columns([1, 2])
         with c1: st.markdown("### 💎 診断クイズメーカー")
         with c2: st.text_input("search", label_visibility="collapsed", placeholder="🔍 キーワード検索...")
         st.write("") 
 
-        # ヒーロー
         st.markdown(styles.HERO_HTML, unsafe_allow_html=True)
         
-        # 作成ボタン
-        st.markdown('<div class="big-create-btn">', unsafe_allow_html=True)
+        st.markdown('<div style="max-width:600px; margin:0 auto;">', unsafe_allow_html=True)
         if st.button("✨ 新しい診断を作成する", type="primary", use_container_width=True):
             st.session_state.page_mode = 'create'; st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
-        st.write("")
+        st.markdown('</div><br>', unsafe_allow_html=True)
 
-        # ギャラリー
         st.markdown("### 📚 新着の診断")
         if supabase:
             res = supabase.table("quizzes").select("*").eq("is_public", True).order("created_at", desc=True).limit(15).execute()
@@ -100,16 +95,15 @@ else:
                 for i, q in enumerate(res.data):
                     with cols[i % 3]:
                         content = q.get('content', {})
-                        # 画像
                         keyword = content.get('image_keyword', 'abstract')
                         seed = q['id'][-4:] 
-                        img_url = f"https://image.pollinations.ai/prompt/{keyword}%20{seed}?width=350&height=180&nologo=true"
+                        img_url = f"https://image.pollinations.ai/prompt/{keyword}%20{seed}?width=350&height=160&nologo=true"
                         
-                        # ★リンクURL
+                        # リンクURL
                         base = "https://shindan-quiz-maker.streamlit.app"
                         link_url = f"{base}/?id={q['id']}"
                         
-                        # ★カード全体をクリック可能にするHTMLを表示
+                        # クリック可能なカードを表示
                         st.markdown(
                             styles.get_clickable_card_html(link_url, q.get('title','無題'), content.get('intro_text',''), img_url), 
                             unsafe_allow_html=True
@@ -117,15 +111,13 @@ else:
                         
                         # 管理者削除ボタン
                         if st.session_state.is_admin:
-                            st.markdown('<div class="delete-wrapper">', unsafe_allow_html=True)
                             st.markdown('<div class="delete-btn">', unsafe_allow_html=True)
-                            if st.button("🗑️ 削除", key=f"del_{q['id']}"):
+                            if st.button("🗑️ 削除", key=f"del_{q['id']}", use_container_width=True):
                                 if logic.delete_quiz(supabase, q['id']):
-                                    st.toast("削除しました", icon="🗑️")
-                                    time.sleep(1); st.rerun()
-                            st.markdown('</div></div>', unsafe_allow_html=True)
-                        else:
-                            st.write("") # レイアウト調整用の余白
+                                    st.toast("削除しました"); time.sleep(1); st.rerun()
+                            st.markdown('</div>', unsafe_allow_html=True)
+                        
+                        st.write("") 
             else:
                 st.info("まだ投稿がありません")
 
@@ -146,22 +138,34 @@ else:
                 try:
                     msg = st.empty(); msg.info("AIが執筆中...")
                     client = openai.OpenAI(api_key=api_key)
+                    
+                    # ★★★ プロンプト修正：数を強制する ★★★
                     prompt = f"""
-                    あなたはプロの占い師兼キャリアコンサルタントです。テーマ: {theme}
-                    以下のJSON形式で出力してください。
+                    あなたはプロの診断作家です。テーマ: {theme}
+                    
+                    【絶対厳守の制約事項】
+                    1. 質問は「必ず5問」作成すること。
+                    2. 各質問の選択肢は「必ず4つ」作成すること。
+                    3. 結果パターンは「必ず3つ（A, B, C）」作成すること。
+                    4. JSON形式のみを出力すること。
+                    
+                    出力JSONフォーマット:
                     {{
                         "page_title": "タイトル", "main_heading": "大見出し", "intro_text": "導入文",
                         "image_keyword": "英単語1語(例: business)",
                         "results": {{
-                            "A": {{ "title": "タイプA名", "desc": "詳細な解説(600文字程度)", "btn": "ボタン", "link":"" }},
-                            "B": {{ "title": "タイプB名", "desc": "詳細な解説(600文字程度)", "btn": "ボタン", "link":"" }},
-                            "C": {{ "title": "タイプC名", "desc": "詳細な解説(600文字程度)", "btn": "ボタン", "link":"" }}
+                            "A": {{ "title": "...", "desc": "詳細解説(600字)", "btn": "...", "link":"" }},
+                            "B": {{ "title": "...", "desc": "詳細解説(600字)", "btn": "...", "link":"" }},
+                            "C": {{ "title": "...", "desc": "詳細解説(600字)", "btn": "...", "link":"" }}
                         }},
                         "questions": [
-                            {{ "question": "質問文", "answers": [ {{ "text": "...", "type": "A" }}, {{ "text": "...", "type": "B" }}, {{ "text": "...", "type": "C" }}, {{ "text": "...", "type": "A" }} ] }}
+                            {{ "question": "...", "answers": [ {{ "text": "...", "type": "A" }}, {{ "text": "...", "type": "B" }}, {{ "text": "...", "type": "C" }}, {{ "text": "...", "type": "A" }} ] }},
+                            {{ "question": "...", "answers": [ ... ] }},
+                            {{ "question": "...", "answers": [ ... ] }},
+                            {{ "question": "...", "answers": [ ... ] }},
+                            {{ "question": "...", "answers": [ ... ] }}
                         ]
                     }}
-                    質問は5問。JSONのみ出力。
                     """
                     res = client.chat.completions.create(model="gpt-4o-mini", messages=[{"role":"system","content":"Output JSON only"}, {"role":"user","content":prompt}], response_format={"type":"json_object"})
                     data = json.loads(res.choices[0].message.content)
@@ -178,9 +182,12 @@ else:
                                 st.session_state[f'res_btn_{t}'] = r.get('btn','')
                                 st.session_state[f'res_link_{t}'] = r.get('link','')
                     if 'questions' in data:
+                        # ループ回数をmax 5回にして安全策をとるが、AIが5個返せば5個入る
                         for i,q in enumerate(data['questions']):
+                            if i >= 5: break
                             st.session_state[f'q_text_{i+1}'] = q.get('question','')
                             for j,a in enumerate(q.get('answers',[])):
+                                if j >= 4: break
                                 st.session_state[f'q{i+1}_a{j+1}_text'] = a.get('text','')
                                 st.session_state[f'q{i+1}_a{j+1}_type'] = a.get('type','A')
                     msg.success("完了！"); time.sleep(0.5); st.rerun()
@@ -239,12 +246,16 @@ else:
                 if not email: st.error("Email必須")
                 elif not q_obj: st.error("質問なし")
                 else:
-                    s_data = {'page_title':page_title, 'main_heading':main_heading, 'intro_text':intro_text, 'image_keyword':image_keyword, 'results':res_obj, 'questions':q_obj}
+                    s_data = {
+                        'page_title':page_title, 'main_heading':main_heading, 'intro_text':intro_text, 
+                        'image_keyword':image_keyword,
+                        'results':res_obj, 'questions':q_obj
+                    }
                     try:
                         is_p = True if sub_free else is_pub
                         res = supabase.table("quizzes").insert({"email":email, "title":main_heading, "content":s_data, "is_public":is_p}).execute()
                         new_id = res.data[0]['id']
-                        base = "https://shindan-quiz-maker.streamlit.app"
+                        base = "https://shindan-quiz-maker.streamlit.app" # URL指定
                         
                         if sub_free:
                             if logic.send_email(email, f"{base}/?id={new_id}", main_heading):
