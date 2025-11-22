@@ -12,8 +12,8 @@ import logic
 # 日本語文字化け防止
 os.environ["PYTHONIOENCODING"] = "utf-8"
 
-# ページ設定
-st.set_page_config(page_title="Diagnosis Portal", page_icon="💎", layout="wide")
+# ページ設定 ★ここを変更しました
+st.set_page_config(page_title="診断クイズメーカー", page_icon="💎", layout="wide")
 
 # --- 初期設定 ---
 if "stripe" in st.secrets:
@@ -132,7 +132,6 @@ else:
 
         st.markdown("### 📚 新着の診断")
         if supabase:
-            # 最新15件を表示
             res = supabase.table("quizzes").select("*").eq("is_public", True).order("created_at", desc=True).limit(15).execute()
             if res.data:
                 cols = st.columns(3)
@@ -196,7 +195,6 @@ else:
             
             st.header("🧠 AIアシスタント")
             
-            # ★ヒントをプレースホルダーに追加してわかりやすく
             theme_placeholder = """【良い診断を作るためのヒント】
 1. ターゲット：誰に向けた診断か？ (例: 30代の婚活女性、フリーランス、猫好き)
 2. テーマ：何を診断するのか？ (例: 隠れた才能、相性の良いアロマ、運命の相手)
@@ -206,7 +204,6 @@ else:
 30代の起業を目指す人向けに、向いているビジネスモデルを診断して。
 辛口かつ論理的なアドバイスで、背中を押してほしい。"""
 
-            # ★縦幅を広げました (height=300)
             theme = st.text_area("テーマ・詳細設定", height=300, placeholder=theme_placeholder)
             
             st.caption("※AIの文章作成には10秒〜30秒ほどかかります。")
@@ -337,21 +334,16 @@ else:
                         ans_list.append({'text':at, 'type':aty})
                     if qt: q_obj.append({'question':qt, 'answers':ans_list})
 
-            # ★価格設定と公開ボタン（縦並び）
             st.markdown("---")
-            st.write("#### 💰 購入価格の設定") # 文言変更
+            st.write("#### 💰 購入価格の設定")
             price = st.number_input("価格 (円)", 980, 98000, 980, 100)
+            
+            st.info("URL送付用メールアドレス (必須)")
+            email = st.text_input("Email", placeholder="mail@example.com", label_visibility="collapsed")
             
             st.markdown("---")
             st.subheader("📤 公開・保存")
             
-            # メール入力
-            st.info("URL送付用メールアドレス (必須)")
-            email = st.text_input("Email", placeholder="mail@example.com", label_visibility="collapsed")
-            
-            st.write("")
-            
-            # ボタンエリア
             st.markdown("**① URL発行 (無料)**")
             st.caption("※ポータルサイトに自動掲載されます。")
             sub_free = st.form_submit_button("🌐 無料でWeb公開する", type="primary", use_container_width=True)
