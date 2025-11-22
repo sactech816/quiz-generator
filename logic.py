@@ -4,9 +4,7 @@ import smtplib
 from email.mime.text import MIMEText
 from supabase import create_client
 
-# ==========================================
 # HTMLテンプレート
-# ==========================================
 HTML_TEMPLATE_RAW = """<!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -25,18 +23,14 @@ HTML_TEMPLATE_RAW = """<!DOCTYPE html>
         .quiz-container { max-width: 700px; width: 100%; padding: 2.5rem; background-color: white; border-radius: 0.75rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
         .question-card, .result-card { padding: 1.5rem; border: 1px solid #e5e7eb; border-radius: 0.5rem; margin-bottom: 1.5rem; }
         
-        /* 選択肢ボタン */
         .option-button { display: block; width: 100%; text-align: left; padding: 1rem 1.25rem; margin-bottom: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.375rem; background-color: #fff; transition: all 0.2s; cursor: pointer; }
         .option-button:hover { background-color: #eff6ff; border-color: var(--main-color); color: var(--main-color); }
         .option-button.selected { background-color: #dbeafe; border-color: var(--main-color); font-weight: 600; }
         
-        /* メインボタン */
         .next-button, .restart-button { padding: 0.85rem 2rem; border-radius: 0.375rem; font-weight: 600; transition: all 0.2s; text-align: center; display: inline-block; cursor: pointer; width: 100%; border: none; color: white; background-color: var(--main-color); }
-        .next-button:hover { opacity: 0.9; }
         .next-button:disabled { background-color: #9ca3af; cursor: not-allowed; }
         .restart-button { background-color: #4b5563; margin-top: 1rem; }
         
-        /* プログレスバー */
         .progress-bar-container { width: 100%; background-color: #e5e7eb; border-radius: 99px; overflow: hidden; margin-bottom: 1.5rem; }
         .progress-bar { height: 0.5rem; background-color: var(--main-color); width: 0%; transition: width 0.3s ease-in-out; }
         
@@ -44,11 +38,9 @@ HTML_TEMPLATE_RAW = """<!DOCTYPE html>
         .result-title { font-size: 1.75rem; font-weight: 700; color: var(--main-color); margin-bottom: 1rem; text-align: center; }
         .result-text { line-height: 1.8; color: #4b5563; }
         
-        /* リンクボタン */
         .flyer-link-button { background-color: var(--main-color); color: white; text-decoration: none; display: block; padding: 1rem; border-radius: 0.375rem; text-align: center; font-weight: bold; transition: transform 0.2s; }
         .flyer-link-button:hover { transform: scale(1.02); }
         
-        /* LINE誘導エリア */
         .line-section { background-color: #f0fdf4; border: 2px solid #22c55e; border-radius: 10px; padding: 20px; margin-top: 30px; text-align: center; }
         .line-title { color: #15803d; font-weight: bold; font-size: 1.1rem; margin-bottom: 10px; }
         .line-desc { font-size: 0.9rem; color: #333; margin-bottom: 15px; }
@@ -74,7 +66,6 @@ HTML_TEMPLATE_RAW = """<!DOCTYPE html>
         let questions = [], results = [], currentQuestionIndex = 0, userAnswers = [];
         const quizArea = document.getElementById('quiz-area'), resultArea = document.getElementById('result-area');
         
-        // シャッフル関数
         function shuffle(array) {
             for (let i = array.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
